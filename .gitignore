@@ -1,0 +1,18 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+*.local
+.npm-cache/
+
+# Local project planning and sensitive material are not for public release.
+Goals/
+docs/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*
+secrets*

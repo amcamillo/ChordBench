@@ -1,0 +1,82 @@
+/* Chord Workbench base theme. Fonts ship under OFL. */
+@font-face { font-family: 'Inter'; src: url('/fonts/inter-latin.woff2') format('woff2'); font-style: normal; font-weight: 200 600; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Inter'; src: url('/fonts/inter-latin-ext.woff2') format('woff2'); font-style: normal; font-weight: 200 600; font-display: swap; }
+@font-face { font-family: 'Space Mono'; src: url('/fonts/space-mono-400-latin.woff2') format('woff2'); font-style: normal; font-weight: 400; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Space Mono'; src: url('/fonts/space-mono-400-latin-ext.woff2') format('woff2'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Space Mono'; src: url('/fonts/space-mono-700-latin.woff2') format('woff2'); font-style: normal; font-weight: 700; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Space Mono'; src: url('/fonts/space-mono-700-latin-ext.woff2') format('woff2'); font-style: normal; font-weight: 700; font-display: swap; }
+
+:root {
+  --ink: #12244a;
+  --muted: #3a4d72;
+  --paper: #fff;
+  --line: #c5cbe0;
+  --accent: #05768a;
+  --accent-soft: #e4f5f5;
+  --navy: #142a50;
+  --warning: #90451c;
+  --theme-violet: #6042b1;
+  --theme-magenta: #b31665;
+  --theme-teal: #05768a;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--ink);
+  background: #f8f4fb;
+}
+body {
+  background: radial-gradient(ellipse 65% 600px at 8% 0%, rgba(255,45,120,.10), transparent 70%),
+    radial-gradient(ellipse 60% 700px at 95% 5%, rgba(0,175,194,.15), transparent 70%),
+    radial-gradient(ellipse 70% 800px at 75% 90%, rgba(76,100,220,.10), transparent 70%),
+    linear-gradient(155deg, #f8f4fb, #e8f2fa 62%, #f8f4fb);
+  background-attachment: fixed;
+}
+button { border-color: #b9c6db; border-radius: 9px; font-weight: 550; }
+button:hover:not(:disabled) { background: #e4f5f5; border-color: var(--accent); }
+button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline-color: #a71665; }
+.app-header { background: rgba(248,244,251,.75); border-bottom-color: rgba(124,137,176,.3); }
+.brand { font-weight: 500; letter-spacing: -.5px; }
+.brand svg { color: #05768a; filter: drop-shadow(0 2px 7px rgba(0,175,194,.25)); }
+.brand-light { font-weight: 600; color: #693ba0; }
+.local-status, .edition-label, .source-label, .transport-status, .transport-warning, .journey-count { font-family: 'Space Mono', ui-monospace, monospace; }
+.status-dot { box-shadow: 0 0 9px rgba(0,175,194,.6); }
+.workspace-intro h1 { font-weight: 400; letter-spacing: -.045em; }
+.song-transport { background: rgba(255,255,255,.73); border-color: rgba(111,128,170,.3); box-shadow: 0 12px 42px rgba(50,72,130,.07); }
+.song-transport, .workspace { backdrop-filter: blur(14px); }
+.workspace { background: rgba(255,255,255,.86); border-color: rgba(111,128,170,.33); box-shadow: 0 22px 70px rgba(60,72,134,.12); }
+.editor-panel { background: rgba(246,244,252,.86); }
+.chart-panel { background: rgba(255,255,255,.72); }
+.learning-panel { background: radial-gradient(ellipse at 95% 4%, rgba(0,191,207,.16), transparent 37%), radial-gradient(ellipse at 5% 95%, rgba(255,45,120,.10), transparent 45%), linear-gradient(160deg, #102346, #172d51); }
+.transpose-controls { background: rgba(241,244,251,.86); border-color: #c9d1e4; }
+textarea, select, .transport-controls input { border-color: #acbad3; }
+textarea, .chart-line, .anchored-line, .import-preview-text { font-family: 'Space Mono', ui-monospace, monospace; }
+.section-heading { font-family: 'Inter', system-ui, sans-serif; color: #4b5980; }
+.chord-token { font-family: 'Inter', system-ui, sans-serif; color: #056675; background: #e5f4f5; border-radius: 8px; }
+.chord-token[aria-pressed=true] { background: #183157; border-color: #183157; box-shadow: inset 0 -3px 0 #38bfc4; }
+.chord-token.playing-token { outline-color: #c4146f; }
+.primary-button, .external-chart-link { background: #086f81; border-color: #086f81; color: #fff; }
+.primary-button:hover:not(:disabled), .external-chart-link:hover { background: #075968; color: #fff; }
+.chart-import { background: rgba(222,244,245,.6); border-color: #a7cbd2; }
+.chart-import > summary { color: #075f6c; }
+.notice { background: #e4f5f5; border-color: #a7cbd2; }
+.instrument-panel { border-top-color: #647c9d; }
+.instrument-switch button[aria-pressed=true] { background: #a7e4dd; border-color: #a7e4dd; }
+
+/* Luminous points and fine links for the chord graph. */
+.journey-panel { background: linear-gradient(145deg, rgba(250,247,253,.94), rgba(235,247,250,.9)); }
+.journey-viewport { background: radial-gradient(ellipse at 12% 10%, rgba(255,45,120,.08), transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(0,175,194,.12), transparent 55%), rgba(255,255,255,.68); border-color: #ced3e5; }
+.journey-section-toggle { background: rgba(255,255,255,.72); border-color: #c2cbe0; }
+.journey-continuation { color: #53638d; }
+.journey-toolbar output, .journey-node-order { font-family: 'Space Mono', ui-monospace, monospace; }
+.journey-node { border: 1px solid transparent; border-radius: 999px; background: transparent; color: #193b60; display: flex; align-items: flex-start; justify-content: center; padding: 4px 4px 4px 38px; text-align: left; overflow: visible; }
+.journey-node::before { content: ''; position: absolute; left: 11px; top: 17px; width: 19px; height: 19px; border-radius: 50%; background: radial-gradient(circle at 38% 35%, #fff 0 13%, #8de9e2 25%, #00a8b9 65%, #087888 100%); box-shadow: 0 0 0 5px rgba(0,175,194,.10), 0 0 17px 4px rgba(0,175,194,.28); }
+.journey-node::after { content: ''; position: absolute; left: 6px; top: 12px; width: 27px; height: 27px; border: 1px dashed transparent; border-radius: 50%; pointer-events: none; }
+.journey-node:hover:not(:disabled) { background: rgba(232,246,247,.78); border-color: #87bfc7; }
+.journey-node-symbol { text-align: left; font-size: 16px; font-weight: 600; }
+.journey-node-order { color: #4b5d80; font-size: 10px; }
+.journey-node[aria-pressed=true] { color: #542f8c; background: rgba(227,218,250,.78); border-color: #8d74ca; }
+.journey-node[aria-pressed=true]::before { background: radial-gradient(circle at 38% 35%, #fff 0 13%, #f6b7e4 25%, #c63c95 65%, #a61c72 100%); box-shadow: 0 0 0 5px rgba(196,20,111,.11), 0 0 18px 4px rgba(196,20,111,.28); }
+.journey-node[aria-pressed=true]::after { border-color: #a71665; }
+.journey-node.journey-unresolved:not([aria-pressed=true]) { color: #81411c; background: rgba(255,241,222,.8); border-color: #b5804e; }
+.journey-node.journey-playing { outline-color: #c4146f; }
+.journey-list button[aria-pressed=true] { background: #183157; color: white; }
+.mobile-tabs button[aria-current=page] { color: #075f6c; border-bottom-color: #05768a; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

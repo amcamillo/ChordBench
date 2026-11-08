@@ -1,0 +1,61 @@
+/* Shared visual vocabulary for musical objects across the workbench.
+   The sphere colors match the WebGL scene; selection uses an outline, not a new pitch color. */
+:root {
+  --orbit-root: #ff84c6;
+  --orbit-tone: #83f9ef;
+  --orbit-link: #ba8dff;
+  --orbit-space: #070f1f;
+  --orbit-ink: #eef7ff;
+  --orbit-root-sphere: radial-gradient(circle at 34% 28%, #fff 0%, #ffd0ea 16%, #ff84c6 43%, #9b2e73 100%);
+  --orbit-tone-sphere: radial-gradient(circle at 34% 28%, #fff 0%, #d5fffb 16%, #83f9ef 43%, #147c91 100%);
+}
+
+/* A chord is a small constellation, rather than a single note. */
+.chord-token, .journey-node:not(.structure-node), .structure-center { position: relative; }
+.chord-token { padding-left: 31px; }
+.chord-token::before, .journey-node:not(.structure-node)::before, .structure-center::before {
+  content: ''; position: absolute; width: 17px; height: 17px; border-radius: 50%;
+  background: var(--orbit-root-sphere); box-shadow: 7px 5px 0 -3px #83f9ef, 0 0 12px rgba(255,132,198,.65), 7px 5px 12px rgba(131,249,239,.55);
+}
+.chord-token::before { left: 8px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; }
+.chord-token.unresolved::before, .journey-node.journey-unresolved::before { background: transparent; border: 1px dashed currentColor; box-shadow: none; }
+
+/* Give every note the same luminous body, with its root-relative role intact. */
+.orbital-note::before, .journey-node.structure-node::before {
+  content: ''; display: inline-block; flex: none; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--orbit-tone-sphere); box-shadow: 0 0 11px rgba(131,249,239,.65);
+}
+.orbital-root::before, .journey-node.structure-node.orbital-root::before { background: var(--orbit-root-sphere); box-shadow: 0 0 11px rgba(255,132,198,.7); }
+.orbital-bass::before { background: radial-gradient(circle at 34% 28%, white, #ced8ea 40%, #6a7890); box-shadow: 0 0 9px rgba(206,216,234,.5); }
+.orbital-note { display: inline-flex; align-items: center; gap: 8px; }
+.note-name.orbital-note { min-width: 53px; }
+.time-note-buttons button.orbital-note { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+.time-note-buttons button.orbital-note small { flex-basis: 100%; }
+.time-view .time-note-buttons button[aria-pressed=true] { color: #10223d; background: #d6eff2; border-color: #d6eff2; outline: 2px solid #fff; outline-offset: 2px; }
+
+/* A dark scene and fine luminous paths connect the alternate graph layouts. */
+.journey-viewport { background: radial-gradient(ellipse at 50% 15%, #182b48, var(--orbit-space) 72%); border-color: #536b8d; }
+.journey-section-toggle { background: #1a2d4b; color: #f0f7ff; border-color: #7189a6; }
+.journey-section-toggle span:last-child, .journey-continuation { color: #c4d8e8; }
+.journey-section-toggle:hover:not(:disabled) { background: #2a4464; color: white; }
+.journey-node { color: var(--orbit-ink); }
+.journey-node-order { color: #c1d4e8; }
+.journey-node:hover:not(:disabled), .journey-node[aria-pressed=true] { color: #fff; background: #263b5b; border-color: #bce9f0; }
+.journey-node[aria-pressed=true]::before { background: var(--orbit-root-sphere); }
+.journey-node.structure-node.orbital-tone[aria-pressed=true]::before { background: var(--orbit-tone-sphere); }
+.journey-node[aria-pressed=true]::after { border-color: #fff; }
+.journey-node.journey-unresolved:not([aria-pressed=true]) { background: #473329; color: #ffe4bf; border-color: #e4b886; }
+.journey-edges path, .harmonic-edges path, .structure-edges line:not([stroke-dasharray]) { stroke: var(--orbit-link); }
+.journey-edges marker path, .harmonic-edges marker path { fill: var(--orbit-link); stroke: none; }
+.harmonic-edges circle { fill: #172c48; stroke: #a4c9db; }
+.harmonic-edges text { fill: #fff; }
+.structure-center { position: absolute; background: #24354e; border: 1px solid #b5a1df; color: #fff; box-shadow: 0 0 25px rgba(186,141,255,.28); padding-left: 20px; }
+.structure-center::before { left: 12px; top: 21px; }
+.instrument-panel .piano-key.voicing-key.orbital-root { background: #ffc1e2; color: #371b33; }
+.instrument-panel .piano-key.voicing-key.orbital-tone { background: #a2eee8; color: #123b42; }
+.instrument-panel .piano-key.voicing-key.orbital-bass { background: #ced8ea; color: #17243a; }
+.instrument-panel .piano-key.sounding-key { background: #ffe3a1; color: #233e59; }
+.guitar-orb-root { fill: var(--orbit-root); filter: drop-shadow(0 0 5px #ff84c6); }
+.guitar-orb-tone { fill: var(--orbit-tone); filter: drop-shadow(0 0 5px #83f9ef); }
+.guitar-mark.guitar-open-root { fill: var(--orbit-root); }
+.guitar-mark.guitar-open-tone { fill: var(--orbit-tone); }

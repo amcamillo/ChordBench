@@ -1,0 +1,70 @@
+/* ChordBench v0.1: a light, vivid workspace with consistent musical markers. */
+:root {
+  --ink: #202643; --muted: #515b77; --paper: #fff; --line: #d9d9ed;
+  --accent: #285ac6; --accent-soft: #eaf0ff; --navy: #303e91; --warning: #914214;
+  --orbit-root: #e72f65; --orbit-tone: #1478d4; --orbit-link: #7542d4;
+  --orbit-space: #f3f4ff; --orbit-ink: #202643;
+  --orbit-root-sphere: radial-gradient(circle at 34% 28%, #fff 0%, #ffb7c8 16%, #e72f65 43%, #aa1245 100%);
+  --orbit-tone-sphere: radial-gradient(circle at 34% 28%, #fff 0%, #a6d9ff 16%, #1478d4 43%, #174a9a 100%);
+  color: var(--ink); background: #f8f7ff;
+}
+body { background: radial-gradient(ellipse at 8% 0%, #fff1dc, transparent 37%), radial-gradient(ellipse at 95% 5%, #e5f0ff, transparent 38%), #f8f7ff; }
+.app-header { background: rgba(255,255,255,.92); color: var(--ink); border-color: #e5e0f2; }
+.brand { color: #22294b; }.brand-light { color: #6441bd; }.brand svg { color: #eb6b42; }
+.local-status { color: #515b77; }.status-dot { background: #398f68; box-shadow: none; }
+.app-header .quiet-button { color: #29345a; border-color: #b5bad6; }
+.app-header .quiet-button:hover { color: #263e91; background: #edf1ff; }
+.workspace-intro h1 { color: #252446; }.workspace-intro p, .edition-label { color: #59617b; }
+.explore-fifths { color: #314aaf; background: #eef1ff; border-color: #b5c0f3; }
+.explore-fifths:hover:not(:disabled) { background: #dfe6ff; border-color: #657ce0; }
+.song-transport { color: var(--ink); background: #fff8ed; border-color: #f1d4ae; box-shadow: 0 12px 42px rgba(91,67,112,.07); }
+.transport-intro h2, .transport-controls label { color: #2d2b48; }
+.transport-intro p, .transport-status { color: #635c6f; }.transport-warning { color: #8a3c16; }
+.primary-button, .external-chart-link { background: #365dce; border-color: #365dce; color: white; }
+.primary-button:hover:not(:disabled), .external-chart-link:hover { background: #2447aa; color: white; }
+.workspace { background: #e0dff0; border-color: #dedbec; box-shadow: 0 22px 65px rgba(69,65,130,.1); }
+.graph-region { background: #f5f3ff; }.editor-panel { background: #f8f8ff; }.chart-panel { background: #fff; }
+.workspace-bar { background: #eeebff; color: #252d54; }.workspace-bar p { color: #5c6482; }
+.graph-bar, .details-bar { border-color: #d5d4ec; }.details-bar { background: #f2efff; }
+.transport-heading .panel-toggle, .workspace-bar .panel-toggle { color: #384779; border-color: #a9b1da; }
+.transport-heading .panel-toggle:hover, .workspace-bar .panel-toggle:hover { background: #e3eaff; color: #243a85; }
+.graph-switch { background: #f3f1ff; }.graph-switch button { color: #4a5377; background: white; border-color: #d5d8ec; }
+.graph-switch button:hover:not(:disabled) { background: #e9eeff; color: #2d459c; border-color: #a5b4eb; }
+.graph-switch button[aria-pressed=true] { background: #4e5ed3; color: white; border-color: #4e5ed3; }
+.chord-token { background: #eef2ff; color: #304eab; }.chord-token[aria-pressed=true] { background: #465ac3; border-color: #465ac3; color: white; box-shadow: inset 0 -3px #ffb969; }
+.chord-token[aria-pressed=true]:hover { background: #3549a9; }.chord-token.playing-token, .journey-node.journey-playing { outline-color: #d94e35; }
+.chord-token.unresolved { background: #fff1de; color: #914214; }
+.learning-panel { background: linear-gradient(160deg, #fff6ee, #f5f2ff); color: #292d4c; }
+.chord-quality, .inspector-tag, .source-symbol, .notes-heading, .interval-label, .learning-note p, .bass-note p, .inspector-empty p, .instrument-heading p, .instrument-hint, .instrument-options label, .instrument-unavailable p, .audio-status { color: #555d78; }
+.note-name { color: #252b4a; }.note-list li, .learning-note, .bass-note, .instrument-panel { border-color: #d8d5e9; }
+.note-emblem { color: #7555ce; }.sound-badge { color: #4f5a80; border-color: #b6bfdf; }
+.instrument-switch button[aria-pressed=true] { background: #dfe6ff; border-color: #8ca0ef; color: #283e96; }
+.guitar-diagram { color: #454c70; }.guitar-mark { fill: #454c70; }.guitar-orb-root { fill: #e72f65; }.guitar-orb-tone { fill: #1478d4; }.guitar-finger { fill: white; }
+.instrument-panel .piano-key.voicing-key.orbital-root { background: #ffb7c8; color: #492039; }
+.instrument-panel .piano-key.voicing-key.orbital-tone { background: #a6d9ff; color: #163a63; }
+.time-view { background: linear-gradient(145deg, #fcf9ff, #f0f5ff); color: #252b4b; }
+.time-view-header h2, .time-view-progress strong { color: #29284f; }.time-view-header p, .time-view-progress, .time-sliders label, .time-sliders label span, .time-follow, .time-legend, .time-explanation h3 span, .time-explanation p, .time-reference p, .time-empty p, .time-motion-note { color: #505d7c; }
+.time-kicker { color: #6552bb; }.time-stage { background: #f6f8ff; border-color: #d5d9ef; box-shadow: inset 0 0 60px rgba(112,115,213,.06); }
+.time-stage-caption { text-shadow: 0 1px 12px #fff; }.time-stage-caption strong { color: #29284f; }
+.time-stage-caption span, .time-stage-caption small, .time-stage-horizon { color: #515d7e; }
+.time-view button { color: #344376; background: white; border-color: #bfc9e9; }.time-view button:hover:not(:disabled) { background: #eaf0ff; color: #233d91; border-color: #8498e5; }
+.time-view button:focus-visible, .time-view input:focus-visible, .time-view summary:focus-visible { outline-color: #bc4731; }
+.time-follow input, .time-sliders input { accent-color: #5265d7; }.time-legend { border-color: #d8dcef; }
+.time-legend-root { background: #e72f65; box-shadow: 0 0 7px #f69cb5; }.time-legend-tone { background: #1478d4; box-shadow: 0 0 7px #96c9ff; }
+.time-legend .time-legend-thread { background: #087d9f; }.time-legend .time-legend-lane { background: #817cbd; }
+.time-reference { border-color: #d8dcef; }.time-reference summary { color: #3c4771; }
+.time-view .time-note-buttons button[aria-pressed=true] { background: #dce7ff; border-color: #718ce7; color: #243a85; outline-color: #4965d2; }
+.journey-panel { background: #fdfcff; }.journey-viewport { background: radial-gradient(ellipse at 50% 15%, #f0f2ff, #fafbff 75%); border-color: #d0d5ed; }
+.journey-section-toggle { color: #303b69; background: #fff; border-color: #c4cce8; }.journey-section-toggle span:last-child, .journey-continuation { color: #566180; }
+.journey-section-toggle:hover:not(:disabled) { color: #293d94; background: #eaf0ff; }
+.journey-node { color: #253052; }.journey-node-order { color: #525e7b; }.journey-node:hover:not(:disabled), .journey-node[aria-pressed=true] { background: #e4eaff; border-color: #91a1e0; color: #273d91; }
+.journey-node[aria-pressed=true]::after { border-color: #4e5ed3; }.journey-node.journey-unresolved:not([aria-pressed=true]) { background: #fff1de; color: #873f18; }
+.journey-edges path, .harmonic-edges path, .structure-edges line:not([stroke-dasharray]) { stroke: #7654c5; }.journey-edges marker path, .harmonic-edges marker path { fill: #7654c5; stroke: none; }
+.harmonic-edges circle { fill: white; stroke: #9b9dcc; }.harmonic-edges text { fill: #303652; }
+.structure-center { background: #e5e8ff; color: #273d91; border-color: #9fa7df; }
+.workspace-footer { color: #5b637d; }.workspace-footer summary { color: #424d73; }
+@media (max-width: 767px) {
+  .mobile-tabs { background: #fff; box-shadow: 0 3px 15px rgba(50,50,100,.1); }
+  .mobile-tabs button { color: #505a79; }.mobile-tabs button[aria-current=page] { color: #384fbc; border-bottom-color: #4e5ed3; }
+  .mobile-tabs button:hover:not(:disabled) { background: #eaf0ff; color: #263e91; }
+}
