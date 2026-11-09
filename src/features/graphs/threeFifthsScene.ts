@@ -9,6 +9,8 @@ import { buildTimingTrack } from './dnaTimingTrack.ts';
 import type { TransitionCandidate } from '../../domain/song/transitions.ts';
 import { spelledMidiName } from '../../domain/instruments/voicings.ts';
 import { buildSongOverview } from './songOverview.ts';
+import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
+import type { PianoNote } from '../../domain/instruments/voicings.ts';
 
 const RADIUS = 2.25, SPACING = 1.45, LAYERS = 10;
 const point = (pitch: number, z: number, radius = RADIUS) => {
@@ -31,16 +33,6 @@ function disposeTree(root: THREE.Object3D) {
     }
   });
   geometries.forEach(item => item.dispose()); materials.forEach(item => item.dispose()); textures.forEach(item => item.dispose());
-}
-
-function glowTexture(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 128;
-  const context = canvas.getContext('2d')!;
-  const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gradient.addColorStop(0, 'rgba(255,255,255,1)'); gradient.addColorStop(.12, 'rgba(255,255,255,.8)');
-  gradient.addColorStop(.4, 'rgba(255,255,255,.18)'); gradient.addColorStop(1, 'rgba(255,255,255,0)');
-  context.fillStyle = gradient; context.fillRect(0, 0, 128, 128);
-  return new THREE.CanvasTexture(canvas);
 }
 
 function labelSprite(label: string, fontSize = 32): THREE.Sprite {
@@ -83,6 +75,7 @@ export class ThreeFifthsScene {
   private cursor: THREE.Line | null = null;
   private lastChords: TimeChord[] | null = null;
   private lastRhythm: VisualRhythm | null = null;
+  private lastVoicings: readonly { id: string; notes: PianoNote[] }[] | null = null;
   private destroyed = false;
   private readonly onVisibility = () => this.syncLoop();
   private readonly onLost: (event: Event) => void;
@@ -142,7 +135,7 @@ export class ThreeFifthsScene {
     this.updateTimingTrack();
   }
 
-  setData(chords: TimeChord[], focus: number, selectedPitch: number | null, overview = false, rhythm: VisualRhythm = { groove: GROOVES[0], meter: '4/4' }, timingVisible = true) {
+  setData(chords: TimeChord[], focus: number, selectedPitch: number | null, overview = false, rhythm: VisualRhythm = { groove: GROOVES[0], meter: '4/4' }, timingVisible = true, voicings: readonly { id: string; notes: PianoNote[] }[] = []) {
     if (this.track) { disposeTree(this.track.group); this.scene.remove(this.track.group); }
     this.track = buildTimingTrack(chords, focus, rhythm, text => labelSprite(text, 48));
     this.track.group.visible = timingVisible;
@@ -150,15 +143,19 @@ export class ThreeFifthsScene {
     this.scene.add(this.track.group);
     disposeTree(this.focusLayer); this.focusLayer.clear(); this.noteMeshes = [];
     const focused = chords[focus];
-    this.morph = !overview && focused ? buildFocusedChord(this.focusLayer, focused, chords[focus + 1], selectedPitch, labelSprite) : null;
+    const byId = new Map(voicings.map(item => [item.id, item.notes]));
+    const focusNotes = focused ? byId.get(focused.id) : undefined;
+    const nextNotes = chords[focus + 1] ? byId.get(chords[focus + 1].id) : undefined;
+    this.canvas.dataset.noteColors = JSON.stringify((focused?.notes ?? []).map(note => { const midi = unambiguousPitch(focusNotes, note.pitch); return { pitch: note.pitch, midi, color: noteColor(midi), root: note.root }; }));
+    this.morph = !overview && focused ? buildFocusedChord(this.focusLayer, focused, chords[focus + 1], selectedPitch, labelSprite, focusNotes, nextNotes) : null;
     this.noteMeshes = this.morph?.meshes ?? [];
-    if (overview && this.overview && this.lastChords === chords && this.lastRhythm === rhythm) {
+    if (overview && this.overview && this.lastChords === chords && this.lastRhythm === rhythm && this.lastVoicings === voicings) {
       this.focus = focus; this.setPosition(this.playbackPosition?.() ?? focus); return;
     }
-    if (!overview && !this.overview && this.lastChords === chords && this.lastRhythm === rhythm && focus >= this.anchor && focus < this.anchor + LAYERS - 2) {
+    if (!overview && !this.overview && this.lastChords === chords && this.lastRhythm === rhythm && this.lastVoicings === voicings && focus >= this.anchor && focus < this.anchor + LAYERS - 2) {
       this.focus = focus; this.setPosition(this.playbackPosition?.() ?? focus); return;
     }
-    this.lastChords = chords; this.lastRhythm = rhythm;
+    this.lastChords = chords; this.lastRhythm = rhythm; this.lastVoicings = voicings;
     disposeTree(this.data); this.data.clear(); this.motionProbe = null;
     this.overview = overview; this.focus = focus; this.anchor = focus; this.count = chords.length; this.cursor = null;
     this.scene.fog = overview ? null : new THREE.FogExp2(0xf6f8ff, .025);
@@ -168,16 +165,11 @@ export class ThreeFifthsScene {
     this.canvas.dataset.total = String(chords.length);
     this.setView(this.yaw, this.tilt, this.zoom);
     if (overview) {
-      this.cursor = buildSongOverview(this.data, chords, rhythm);
+      this.cursor = buildSongOverview(this.data, chords, rhythm, voicings);
       this.canvas.dataset.rendered = String(chords.length);
       this.canvas.dataset.first = '1'; this.canvas.dataset.last = String(chords.length);
       this.setPosition(this.playbackPosition?.() ?? focus); return;
     }
-    const glows = glowTexture();
-    const halo = (color: number, scale: number) => {
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glows, color, transparent: true, opacity: .72, blending: THREE.AdditiveBlending, depthWrite: false }));
-      sprite.scale.setScalar(scale); return sprite;
-    };
     // The central thread marks depth; it does not imply an inferred musical beat.
     const axis = new THREE.Mesh(new THREE.CylinderGeometry(.025, .055, 21, 12), new THREE.MeshBasicMaterial({ color: 0x49358f, depthTest: false, depthWrite: false, fog: false }));
     axis.renderOrder = 20; axis.rotation.x = Math.PI / 2; axis.position.z = -7; this.data.add(axis);
@@ -221,11 +213,14 @@ export class ThreeFifthsScene {
       }
       chord.notes.forEach(note => {
         const isSelected = chordIndex === focus && note.pitch === selectedPitch;
-        const color = note.root ? 0xe72f65 : 0x1478d4;
-        const mesh = new THREE.Mesh(new THREE.SphereGeometry(note.root ? .115 : .085, 20, 14), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: isSelected ? 1.5 : .75, roughness: .24, metalness: .08 }));
+        const color = noteColor(unambiguousPitch(byId.get(chord.id), note.pitch));
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(note.root ? .115 : .085, 20, 14), new THREE.MeshBasicMaterial({ color, fog: false, toneMapped: false }));
         mesh.position.copy(backgroundPoint(note.pitch)); mesh.userData.pitch = note.pitch;
         if (!this.motionProbe) this.motionProbe = mesh;
-        mesh.add(halo(color, isSelected ? 1.15 : note.root ? .9 : .7));
+        if (note.root || isSelected) {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(isSelected ? .18 : .15, .018, 6, 20), new THREE.MeshBasicMaterial({ color: 0x19243a, fog: false, toneMapped: false }));
+          ring.position.z = .03; mesh.add(ring);
+        }
         this.data.add(mesh);
       });
       const next = visible[index + 1];
@@ -270,14 +265,19 @@ export class ThreeFifthsScene {
       const a = voice.from ? voicePoint(voice.from.midi % 12, false) : null;
       const b = voice.to ? voicePoint(voice.to.midi % 12, true) : null;
       if (a && b) {
-        const middle = a.clone().lerp(b, .5); middle.multiplyScalar(1.18);
-        const curve = new THREE.QuadraticBezierCurve3(a, middle, b);
-        const color = voice.semitones === 0 ? 0x087d9f : 0x7542d4;
-        const line = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, .045, 6, false), new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false }));
-        line.renderOrder = 25; this.voiceLayer.add(line);
-        const arrow = new THREE.Mesh(new THREE.ConeGeometry(.12, .30, 8), new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false }));
-        arrow.position.copy(curve.getPoint(.72)); arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangent(.72).normalize());
-        arrow.renderOrder = 25; this.voiceLayer.add(arrow);
+        const curve = new THREE.LineCurve3(a, b);
+        const color = 0x37465e;
+        if (voice.semitones === 0) {
+          const line = new THREE.Mesh(new THREE.TubeGeometry(curve, 1, .045, 6, false), new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false, fog: false }));
+          line.renderOrder = 25; this.voiceLayer.add(line);
+        } else {
+          const geometry = new THREE.BufferGeometry().setFromPoints([a, b]);
+          const line = new THREE.Line(geometry, new THREE.LineDashedMaterial({ color, dashSize: .18, gapSize: .12, depthTest: false, depthWrite: false, fog: false }));
+          line.computeLineDistances(); line.renderOrder = 25; this.voiceLayer.add(line);
+          const arrow = new THREE.Mesh(new THREE.ConeGeometry(.12, .30, 8), new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false, fog: false }));
+          arrow.position.copy(curve.getPoint(.72)); arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangent(.72).normalize());
+          arrow.renderOrder = 25; this.voiceLayer.add(arrow);
+        }
       }
       const text = `${voice.from ? spelledMidiName(voice.from.midi, voice.from.spelling) : '+'} > ${voice.to ? spelledMidiName(voice.to.midi, voice.to.spelling) : '-'}`;
       const label = labelSprite(text, 30);

@@ -11,5 +11,6 @@ import './transitions.css';
 import './touch-companion.css';
 import './session.css';
 import './playlist-score.css';
+import './note-colors.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);

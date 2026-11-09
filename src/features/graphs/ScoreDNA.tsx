@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { notePositions, type ScoreChord } from '../../domain/graphs/score.ts';
 import { spelledMidiName, type PianoNote } from '../../domain/instruments/voicings.ts';
+import { noteColor } from '../../domain/harmony/noteColor.ts';
+import { noteStyle } from '../noteStyle.ts';
 import type { InstrumentAudio } from '../../infrastructure/audio/instrumentAudio.ts';
 
 interface Props {
@@ -47,7 +49,7 @@ export function ScoreDNA({ score, selectedId, playingId, stale, audio, onSelect,
       <div className="score-chords"><button disabled={stale || !current.notes.length} onClick={() => void hear(current.notes)}><small>{playingId ? 'Playing' : 'Current'} · {index + 1}</small><strong>{current.symbol}</strong><span>{current.section}</span></button><button disabled={stale || !next} onClick={() => { if (next) { onAudition(); onSelect(next.id); } }}><small>Up next · {next ? index + 2 : '—'}</small><strong>{next?.symbol ?? 'End'}</strong><span>{next ? 'Tap to inspect' : 'Last written chord'}</span></button></div>
       <div className="score-paper" data-depth={depth}>
         <svg className="score-staff" viewBox={`0 ${top} 600 ${bottom - top}`} role="img" aria-label={`Grand staff: ${current.symbol} ${current.notes.map(n => spelledMidiName(n.midi, n.spelling)).join(', ')}; next ${next?.symbol ?? 'end'} ${next?.notes.map(n => spelledMidiName(n.midi, n.spelling)).join(', ') ?? ''}`}>
-          <defs><marker id="score-arrow-common" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#287c71"/></marker><marker id="score-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#81528a"/></marker></defs>
+          <defs><marker id="score-arrow-common" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#287c71"/></marker><marker id="score-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7" fill="none" stroke="#37465e"/></marker></defs>
           {[98, 206].map(start => <g key={start}>{[0,1,2,3,4].map(line => <line key={line} x1="22" x2="578" y1={start + line * 12} y2={start + line * 12} stroke="#8c91a5" strokeWidth="1.2"/>)}</g>)}
           <path d="M22 98V254M305 98V254M578 98V254" fill="none" stroke="#8c91a5" strokeWidth="1.4"/>
           <text x="28" y="140" fontSize="63" fontFamily="Segoe UI Symbol, serif">𝄞</text><text x="31" y="246" fontSize="52" fontFamily="Segoe UI Symbol, serif">𝄢</text>
@@ -55,12 +57,12 @@ export function ScoreDNA({ score, selectedId, playingId, stale, audio, onSelect,
           {guides && movements.map((voice, i) => {
             if (!voice.from || !voice.to) return null;
             const a = left.find(n => n.note.midi === voice.from!.midi), b = right.find(n => n.note.midi === voice.to!.midi);
-            return a && b ? <path key={i} d={`M${a.x + 13} ${a.y} C275 ${a.y}, 350 ${b.y}, ${b.x - 17} ${b.y}`} stroke={voice.semitones === 0 ? '#287c71' : '#81528a'} strokeWidth="2.2" strokeDasharray="5 5" fill="none" markerEnd={voice.semitones === 0 ? 'url(#score-arrow-common)' : 'url(#score-arrow)'}/> : null;
+            return a && b ? <path key={i} d={`M${a.x + 13} ${a.y} C275 ${a.y}, 350 ${b.y}, ${b.x - 17} ${b.y}`} stroke="#37465e" strokeWidth="2.2" strokeDasharray={voice.semitones === 0 ? undefined : "5 5"} fill="none" markerEnd={voice.semitones === 0 ? undefined : 'url(#score-arrow)'}/> : null;
           })}
           {[left, right].map((notes, column) => <g key={column}>{notes.map((item, i) => <g key={item.name}>
             {item.ledgers.map(y => <line key={y} x1={item.x - 18} x2={item.x + 18} y1={y} y2={y} stroke="#454860" strokeWidth="1.4"/>)}
             {item.accidental && <text x={item.x - 25 - (i % 3) * 12} y={item.y + 6} fontSize="22" textAnchor="end">{item.accidental}</text>}
-            <ellipse cx={item.x} cy={item.y} rx="11" ry="6.2" transform={`rotate(-15 ${item.x} ${item.y})`} fill="#fffdf6" stroke={column === 0 ? '#263e80' : '#73517b'} strokeWidth="3.5"/>
+            <ellipse cx={item.x} cy={item.y} rx="11" ry="6.2" transform={`rotate(-15 ${item.x} ${item.y})`} data-note-midi={item.note.midi} data-note-color={noteColor(item.note.midi)} fill="white" stroke={noteColor(item.note.midi)} strokeWidth={item.note.midi % 12 === (column === 0 ? current.chord?.pitchClasses[0] : next?.chord?.pitchClasses[0]) ? 4.5 : 3}/>
           </g>)}</g>)}
           {!current.chord && <text x="180" y="185" textAnchor="middle" fontSize="16">Unresolved chord</text>}
           {next && !next.chord && <text x="440" y="185" textAnchor="middle" fontSize="16">Unresolved chord</text>}
@@ -73,7 +75,7 @@ export function ScoreDNA({ score, selectedId, playingId, stale, audio, onSelect,
       {labels && <p className="score-pitch-names">{current.notes.map(note => spelledMidiName(note.midi, note.spelling)).join(' / ')}{next?.notes.length ? ` to ${next.notes.map(note => spelledMidiName(note.midi, note.spelling)).join(' / ')}` : ''}</p>}
       <dialog ref={options} className="score-help" aria-labelledby="score-options-heading"><div className="score-help-header"><h2 id="score-options-heading">Score options</h2><button onClick={() => options.current?.close()}>Close options</button></div>
       <div className="score-options"><label>Next voicing<select aria-label="Next chord voicing" disabled={stale || !current.candidates.length} value={current.chosen?.id ?? ''} onChange={event => onChoice(current.id, event.target.value)}>{!current.candidates.length && <option value="">{next ? 'No comparison' : 'End of chart'}</option>}{current.candidates.map((candidate, i) => <option key={candidate.id} value={candidate.id}>{i === 0 ? 'Suggested' : `Alternative ${i}`} · {candidate.movement} semitones{candidate.changes ? ` · ${candidate.changes} voices enter/leave` : ''}</option>)}</select></label></div>
-      {<div className="score-note-names" aria-label="Current voicing notes">{current.notes.map(note => <button key={`${note.midi}-${note.spelling}`} disabled={stale} onClick={() => void hear([note])}>{spelledMidiName(note.midi, note.spelling)}</button>)}</div>}
+      {<div className="score-note-names" aria-label="Current voicing notes">{current.notes.map(note => <button key={`${note.midi}-${note.spelling}`} data-note-midi={note.midi} data-note-color={noteColor(note.midi)} style={noteStyle(note.midi)} disabled={stale} onClick={() => void hear([note])}>{spelledMidiName(note.midi, note.spelling)}</button>)}</div>}
       <div className="score-switches"><button aria-pressed={labels} onClick={() => setLabels(!labels)}>Note names</button><button aria-pressed={guides} onClick={() => setGuides(!guides)}>Voice guides</button><button aria-pressed={depth} onClick={() => setDepth(!depth)}>3D depth</button></div>
       <label className="score-playback-choice"><input type="checkbox" checked={guidedPlayback} onChange={event => onGuidedPlayback(event.target.checked)}/> Use these voicings for piano chart playback</label>
         <button onClick={() => { options.current?.close(); help.current?.showModal(); }}>Read the score</button>
@@ -84,7 +86,7 @@ export function ScoreDNA({ score, selectedId, playingId, stale, audio, onSelect,
       <p>Read left to right. Stacked notes sound together as a chord. The chord symbol names the harmony; the noteheads show this suggested piano voicing.</p>
       <h3>Pitch: lines, spaces and clefs</h3><p>The treble clef lines, bottom to top, are E4–G4–B4–D5–F5. Bass clef lines are G2–B2–D3–F3–A3. Spaces hold the intervening letter names. Middle C (C4) sits on a ledger line below the treble staff. Ledger lines extend a staff beyond its five lines.</p>
       <h3>Accidentals and rhythm</h3><p>♯ raises a written note by one semitone; ♭ lowers it by one. Accidentals here are written explicitly in each practice bar. Hollow, stemless noteheads are whole notes: four quarter-note beats in the displayed practice 4/4. This chart supplies chord order, not its original melody or rhythm. No key signature is inferred.</p>
-      <h3>Voice leading</h3><p>Dashed arrows are learning guides, not ties or slurs. They connect individual pitches between chords. Green guides keep the same pitch; purple guides move. Suggestions favor less total motion without crossing voices, while retaining every chord tone and explicit slash bass. They are alternatives, not prescribed fingering or hand assignments. An extended chord may exceed a comfortable hand span.</p>
+      <h3>Voice leading</h3><p>Solid guides connect the same pitch; dashed arrows show movement. These are learning guides, not ties or slurs. Suggestions favor less total motion without crossing voices, while retaining every chord tone and explicit slash bass. They are alternatives, not prescribed fingering or hand assignments. An extended chord may exceed a comfortable hand span.</p>
       <p>Note-name buttons play single notes. Hear change plays the displayed pair on piano. Enable the playback checkbox to use these voicings for the chart; guitar playback keeps its guitar shapes. Switching a voicing stops playback, and its destination becomes the next chord's starting voicing.</p>
       <p>3D depth tilts the score surface; it does not change pitch or rhythm. Turn it off for a flat reading view.</p>
       <a href="https://viva.pressbooks.pub/openmusictheory/chapter/notation-of-notes-clefs-and-ledger-lines/" target="_blank" rel="noopener noreferrer">Notation fundamentals — Open Music Theory</a>

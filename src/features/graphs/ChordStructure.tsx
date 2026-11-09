@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChordDefinition } from '../../domain/harmony/types.ts';
 import { buildChordStructure, referenceDistance } from '../../domain/graphs/chordStructure.ts';
+import { noteColor } from '../../domain/harmony/noteColor.ts';
+import { noteStyle } from '../noteStyle.ts';
 import type { InstrumentAudio } from '../../infrastructure/audio/instrumentAudio.ts';
 
 interface Props { chord?: ChordDefinition; occurrenceId?: string; stale: boolean; audio: InstrumentAudio; selectedPitchClass: number | null; onNoteChange(value: number | null): void; onAudition(): void }
@@ -52,14 +54,14 @@ export function ChordStructure({ chord, occurrenceId, stale, audio, selectedPitc
             {showInterval && first && second && from !== to && <line x1={positions[from].x} y1={positions[from].y} x2={positions[to].x} y2={positions[to].y} stroke="#b31665" strokeWidth="2.5" strokeDasharray="5 5"/>}
           </svg>
           <div className="structure-center"><strong>{structure.symbol}</strong><span>chord</span></div>
-          {notes.map((note, i) => <button key={note.id} className={`journey-node structure-node ${note.interval === '1P' ? 'orbital-root' : 'orbital-tone'}`} style={{ left: positions[i].x - 60, top: positions[i].y - 30 }}
+          {notes.map((note, i) => <button key={note.id} className={`journey-node structure-node ${note.interval === '1P' ? 'orbital-root' : 'orbital-tone'}`} data-note-midi={note.midi} data-note-color={noteColor(note.midi)} style={{ left: positions[i].x - 60, top: positions[i].y - 30, ...noteStyle(note.midi) }}
             aria-label={`Structure ${note.spelling}, ${note.role}, ${note.interval}`} aria-pressed={selectedPitchClass === note.pitchClass} disabled={stale} onClick={() => selectNote(note.pitchClass)}>
-            <span className="journey-node-symbol">{note.spelling}</span><span className="journey-node-order">{note.role}</span>
+            <span className="journey-node-symbol">{note.spelling}</span><span className="journey-node-order">{note.role} ? {note.referenceName}</span>
           </button>)}
         </div></div></div>
       </div>
       {structure.bass && <p className="structure-bass">Requested slash bass: {chord!.slashBass}. In this reference voicing it sounds as {structure.bass}; it is not automatically an additional chord tone.</p>}
-      <div className="structure-content"><section aria-label="Chord note list"><h3>Chord notes</h3><div className="harmonic-buttons">{notes.map(note => <button className={`orbital-note ${note.interval === '1P' ? 'orbital-root' : 'orbital-tone'}`} key={note.id} disabled={stale} aria-pressed={selectedPitchClass === note.pitchClass} onClick={() => selectNote(note.pitchClass)}>{note.spelling} · {note.role}</button>)}</div></section>
+      <div className="structure-content"><section aria-label="Chord note list"><h3>Chord notes</h3><div className="harmonic-buttons">{notes.map(note => <button className={`orbital-note ${note.interval === '1P' ? 'orbital-root' : 'orbital-tone'}`} key={note.id} data-note-midi={note.midi} data-note-color={noteColor(note.midi)} style={noteStyle(note.midi)} disabled={stale} aria-pressed={selectedPitchClass === note.pitchClass} onClick={() => selectNote(note.pitchClass)}>{note.spelling} · {note.role}</button>)}</div></section>
         {selected && <section className="harmonic-detail" aria-label="Selected chord note"><h3>{selected.spelling} · {selected.role}</h3><p>Interval from chord root: {selected.interval}. Reference pitch: {selected.referenceName}.</p><button disabled={stale} onClick={() => void audition([selected.midi], selected.referenceName)}>Hear note</button></section>}
         {notes.length > 1 && <section className="harmonic-detail" aria-labelledby="compare-heading"><h3 id="compare-heading">Compare two notes</h3><p>Choose a pair to draw their connection. Distances and audio use this reference voicing.</p><div className="structure-pickers"><label>First note<select aria-label="First comparison note" value={from} disabled={stale} onChange={event => setFrom(Number(event.target.value))}>{notes.map(note => <option value={note.id} key={note.id}>{note.referenceName} · {note.role}</option>)}</select></label><label>Second note<select aria-label="Second comparison note" value={to} disabled={stale} onChange={event => setTo(Number(event.target.value))}>{notes.map(note => <option value={note.id} key={note.id}>{note.referenceName} · {note.role}</option>)}</select></label></div>
           {first && second && <><p>{first.referenceName} to {second.referenceName}: {referenceDistance(first, second)} semitone{referenceDistance(first, second) === 1 ? '' : 's'} apart in this voicing.</p><div className="harmonic-buttons"><button disabled={stale || from === to} aria-pressed={showInterval && from !== to} onClick={() => setShowInterval(value => !value)}>{showInterval && from !== to ? 'Hide connection' : 'Show connection'}</button><button disabled={stale} onClick={() => void audition([first.midi, ...(from === to ? [] : [second.midi])], `${first.referenceName} and ${second.referenceName}`)}>Hear pair</button></div></>}

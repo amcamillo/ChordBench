@@ -1,19 +1,25 @@
 import * as THREE from 'three';
 import { fifthIndex, sharedPitchClasses, type TimeChord } from '../../domain/graphs/fifthsTime.ts';
 import { meterFrame, overviewPoint, overviewX, rhythmEvents, type VisualRhythm } from '../../domain/graphs/rhythm.ts';
+import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
+import type { PianoNote } from '../../domain/instruments/voicings.ts';
 
 function lines(parent: THREE.Group, vertices: number[], color: number, opacity: number) {
   const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   parent.add(new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color, transparent: true, opacity })));
 }
-export function buildSongOverview(parent: THREE.Group, chords: TimeChord[], rhythm: VisualRhythm) {
+export function buildSongOverview(parent: THREE.Group, chords: TimeChord[], rhythm: VisualRhythm, voicings: readonly { id: string; notes: PianoNote[] }[] = []) {
   const roots: number[] = [], tones: number[] = [], outlines: number[] = [], links: number[] = [], bars: number[] = [], groove: number[] = [];
+  const rootColors: number[] = [], toneColors: number[] = [];
+  const byId = new Map(voicings.map(item => [item.id, item.notes]));
   const vector = (pitch: number, position: number) => { const p = overviewPoint(fifthIndex(pitch), position, chords.length); return [p.x, p.y, p.z]; };
   const events = rhythmEvents(rhythm);
   chords.forEach((chord, index) => {
     chord.notes.forEach((note, n) => {
       const p = vector(note.pitch, index);
       (note.root ? roots : tones).push(...p);
+      const color = new THREE.Color(noteColor(unambiguousPitch(byId.get(chord.id), note.pitch)));
+      (note.root ? rootColors : toneColors).push(color.r, color.g, color.b);
       if (chord.notes.length > 1) outlines.push(...p, ...vector(chord.notes[(n + 1) % chord.notes.length].pitch, index));
     });
     if (index + 1 < chords.length) for (const pitch of sharedPitchClasses(chord, chords[index + 1])) links.push(...vector(pitch, index), ...vector(pitch, index + 1));
@@ -39,9 +45,10 @@ export function buildSongOverview(parent: THREE.Group, chords: TimeChord[], rhyt
   }
   lines(parent, [-16, 0, 0, 16, 0, 0], 0x7353d8, .8);
   lines(parent, outlines, 0x7542d4, .35); lines(parent, links, 0x087d9f, .7); lines(parent, bars, 0x9a6b35, .28); lines(parent, groove, 0xcc631d, .8);
-  for (const [vertices, color, size] of [[roots, 0xe72f65, .13], [tones, 0x1478d4, .09]] as const) {
+  for (const [vertices, colors, size] of [[roots, rootColors, .13], [tones, toneColors, .09]] as const) {
     const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    parent.add(new THREE.Points(geometry, new THREE.PointsMaterial({ color, size, sizeAttenuation: true })));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    parent.add(new THREE.Points(geometry, new THREE.PointsMaterial({ vertexColors: true, size, sizeAttenuation: true, fog: false, toneMapped: false })));
   }
   const cursor = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -5.5, 0), new THREE.Vector3(0, 3.8, 0)]), new THREE.LineBasicMaterial({ color: 0x263c91 }));
   parent.add(cursor);

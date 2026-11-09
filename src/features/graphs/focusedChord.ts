@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { fifthsOrbitPoint, type TimeChord, type TimeNote } from '../../domain/graphs/fifthsTime.ts';
 import { pairMorphNotes } from '../../domain/graphs/chordMorph.ts';
+import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
+import type { PianoNote } from '../../domain/instruments/voicings.ts';
+import { spelledMidiName } from '../../domain/instruments/voicings.ts';
 
 const point = (note?: TimeNote) => { const p = note ? fifthsOrbitPoint(note.pitch, 0) : { x: 0, y: 0, z: 0 }; return new THREE.Vector3(p.x, p.y, p.z); };
-const color = (note?: TimeNote) => new THREE.Color(note?.root ? 0xe72f65 : 0x1478d4);
 // Fixed sampling lets triads and extended chords interpolate without changing buffers.
 function outline(notes: TimeNote[]) {
   const vertices = notes.map(note => point(note));
@@ -13,20 +15,27 @@ function outline(notes: TimeNote[]) {
     return vertices[index].clone().lerp(vertices[(index + 1) % vertices.length], t % 1);
   });
 }
-export function buildFocusedChord(parent: THREE.Group, chord: TimeChord, next: TimeChord | undefined, selectedPitch: number | null, labelSprite: (text: string) => THREE.Sprite) {
+export function buildFocusedChord(parent: THREE.Group, chord: TimeChord, next: TimeChord | undefined, selectedPitch: number | null, labelSprite: (text: string) => THREE.Sprite, fromVoicing?: PianoNote[], toVoicing?: PianoNote[]) {
   const target = next && !next.unresolved && !chord.unresolved ? next : chord;
   const sourceOutline = outline(chord.notes), targetOutline = outline(target.notes);
   const geometry = new THREE.BufferGeometry().setFromPoints(sourceOutline);
   const edge = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x7542d4 }));
   parent.add(edge);
   const nodes = pairMorphNotes(chord.notes, target.notes).map(pair => {
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(pair.from?.pitch === selectedPitch ? .31 : .25, 16, 12), new THREE.MeshBasicMaterial({ color: color(pair.from ?? pair.to), transparent: true }));
+    const fromMidi = pair.from ? unambiguousPitch(fromVoicing, pair.from.pitch) : null;
+    const toMidi = pair.to ? unambiguousPitch(toVoicing, pair.to.pitch) : null;
+    const fromColor = new THREE.Color(noteColor(fromMidi));
+    const toColor = new THREE.Color(noteColor(toMidi));
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(pair.from?.pitch === selectedPitch ? .31 : .25, 16, 12), new THREE.MeshBasicMaterial({ color: fromColor, transparent: true, fog: false, toneMapped: false }));
     mesh.userData.pitch = pair.from?.pitch; parent.add(mesh);
-    const labels = [pair.from, pair.to].map(note => {
+    const rootRing = new THREE.Mesh(new THREE.TorusGeometry(.31, .025, 6, 32), new THREE.MeshBasicMaterial({ color: 0x18263a, side: THREE.DoubleSide, fog: false, toneMapped: false }));
+    rootRing.position.z = .05; mesh.add(rootRing);
+    const labels = [pair.from, pair.to].map((note, index) => {
       if (!note) return null;
-      const label = labelSprite(`${note.spelling} ${note.interval}`); label.position.copy(point(note).multiplyScalar(1.25)); parent.add(label); return label;
+      const midi = index === 0 ? fromMidi : toMidi;
+      const label = labelSprite(`${midi === null ? note.spelling : spelledMidiName(midi, note.spelling)} ${note.root ? 'root' : note.interval}`); label.position.copy(point(note).multiplyScalar(1.25)); parent.add(label); return label;
     });
-    return { pair, mesh, labels, start: point(pair.from), end: point(pair.to), fromColor: color(pair.from ?? pair.to), toColor: color(pair.to ?? pair.from) };
+    return { pair, mesh, labels, rootRing, start: point(pair.from), end: point(pair.to), fromColor, toColor };
   });
   const update = (amount: number) => {
     const buffer = geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -35,7 +44,8 @@ export function buildFocusedChord(parent: THREE.Group, chord: TimeChord, next: T
     edge.visible = chord.notes.length > 1 || amount > 0 && target.notes.length > 1;
     for (const node of nodes) {
       node.mesh.position.copy(node.start).lerp(node.end, amount);
-      node.mesh.material.color.copy(node.fromColor).lerp(node.toColor, amount);
+      node.mesh.material.color.copy(amount < .5 ? node.fromColor : node.toColor);
+      node.rootRing.visible = !!(amount < .5 ? node.pair.from?.root : node.pair.to?.root);
       node.mesh.material.opacity = !node.pair.from ? amount : !node.pair.to ? 1 - amount : 1;
       node.mesh.visible = node.mesh.material.opacity > .001;
       if (node.labels[0]) node.labels[0].material.opacity = 1 - amount;

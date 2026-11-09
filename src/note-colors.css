@@ -1,0 +1,35 @@
+/* Note hue always represents an absolute pitch, never root or playback state. */
+.orbital-note::before, .journey-node.structure-node::before,
+.orbital-root::before, .journey-node.structure-node.orbital-root::before,
+.journey-node.structure-node.orbital-tone[aria-pressed=true]::before {
+  background: var(--note-color, #596579); box-shadow: none;
+}
+.orbital-root::before, .journey-node.structure-node.orbital-root::before {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1c273d;
+}
+.instrument-panel .piano-key.voicing-key[data-note-color] {
+  background: var(--note-color); color: #fff; font-weight: 700;
+}
+.instrument-panel .piano-key.voicing-key.orbital-root[data-note-color] {
+  box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 5px #1c273d;
+}
+.instrument-panel .piano-key.voicing-key.sounding-key[data-note-color] {
+  outline: 3px solid #e49c18; outline-offset: -3px;
+}
+.instrument-panel .piano-key.voicing-key.theory-focus[data-note-color] {
+  outline: 3px dashed #fff; outline-offset: -6px;
+}
+.string-list button[data-note-color] strong::before {
+  content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 6px;
+  border-radius: 50%; background: var(--note-color); border: 1px solid #1c273d;
+}
+.score-note-names button[data-note-color]::before {
+  content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 7px;
+  border-radius: 50%; background: var(--note-color); border: 1px solid #1c273d;
+}
+.time-legend-root, .time-legend-tone { background: #596579; box-shadow: none; }
+.time-legend-root { outline: 2px solid #1c273d; outline-offset: 2px; }
+
+.guitar-orb-root, .guitar-orb-tone { filter: none; }
+.dna-voicing-label { font-size: 11px; font-weight: 600; }
+.instrument-panel .string-list button.string-active { background: #f8fcfc; box-shadow: inset 0 0 0 3px #b87800; }

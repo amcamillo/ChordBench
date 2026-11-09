@@ -10,7 +10,7 @@ export function ChordLens({ chord, disabled, onDive }: { chord: TimeChord; disab
     <svg viewBox="0 0 260 220" role="img" aria-label={`${chord.symbol}: ${chord.unresolved ? 'unresolved chord' : chord.notes.map(note => `${note.spelling}, ${roles[note.interval] ?? note.interval}`).join('; ')}`}>
       <circle cx="130" cy="110" r="72" fill="none" stroke="#c8cce4"/>
       {points.length > 1 && <polygon points={points.map(p => `${p.x},${p.y}`).join(' ')} fill="#7542d414" stroke="#7542d4" strokeWidth="2"/>}
-      {points.map((p, i) => <g key={i}><circle cx={p.x} cy={p.y} r={p.root ? 7 : 5} fill={p.root ? '#e72f65' : '#1478d4'}/><text x={p.labelX} y={p.labelY} textAnchor="middle" dominantBaseline="middle" fill="#252b4b" fontSize="14">{p.spelling}</text></g>)}
+      {points.map((p, i) => <g key={i}><circle cx={p.x} cy={p.y} r={p.root ? 7 : 5} fill="#596579" stroke={p.root ? '#19243a' : 'none'} strokeWidth={p.root ? 3 : 0}/><text x={p.labelX} y={p.labelY} textAnchor="middle" dominantBaseline="middle" fill="#252b4b" fontSize="14">{p.spelling}</text></g>)}
       <text x="130" y="114" textAnchor="middle" fill="#252b4b" fontSize="21">{chord.symbol}</text>
     </svg>
     <div><h3>{chord.symbol} · chord {chord.order + 1}</h3><p>{chord.unresolved ? 'Unresolved symbol: no chord tones are invented.' : 'Each dot is a chord tone. The polygon joins those tones around the circle of fifths; its edges are not melody or voice movement.'}</p>
