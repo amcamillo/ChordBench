@@ -39,3 +39,6 @@
 .rail-labels { position: absolute; z-index: 3; inset: 0; pointer-events: none; }
 .rail-label { position: absolute; transform: translate(-50%, -100%); display: inline-flex; align-items: center; gap: 3px; padding: 3px 5px; border: 1px solid #bbc5d7; border-radius: 5px; background: #fff; color: #1d2c45; font: 700 12px/1.15 system-ui, sans-serif; white-space: nowrap; box-shadow: 0 1px 2px #25334a33; }
 .rail-label i { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+
+.rail-label-next { color: #55657a; border-color: #d6dce6; background: #f6f8fc; }
+.rail-label-next i { opacity: .55; }

@@ -16,7 +16,10 @@ for (const [width, height] of [[320, 667], [375, 740], [812, 375], [820, 1180]])
     await toggle.tap();
     await expect(page.getByRole('button', { name: 'Hide note lines' })).toHaveAttribute('aria-pressed', 'true');
     const key = page.getByRole('list', { name: 'Pitch-class rail labels' });
-    await expect(key.getByRole('listitem')).toHaveCount(12);
+    await expect(key.getByRole('listitem')).toHaveCount(4);
+    await expect(key.locator('[data-kind="current"]')).toHaveCount(3);
+    await expect(key.locator('[data-kind="next"]')).toHaveText('A');
+    await expect(canvas).toHaveAttribute('data-preview-chord', '2');
     await expect(key.getByRole('listitem').filter({ hasText: /^C$/ })).toBeVisible(); await expect(key.getByRole('listitem').filter({ hasText: /^E$/ })).toBeVisible();
     const graph = (await canvas.boundingBox())!, labels = (await key.boundingBox())!;
     expect(labels.x).toBeCloseTo(graph.x, 0);
@@ -36,6 +39,11 @@ for (const [width, height] of [[320, 667], [375, 740], [812, 375], [820, 1180]])
     await expect.poll(() => cLabel.getAttribute('style')).not.toBe(first);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight && document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (width === 375 || width === 820) await page.screenshot({ path: `test-results/rail-labels-${width}.png` });
+    await page.getByRole('button', { name: 'Next session chord' }).tap();
+    await expect(key.locator('[data-kind="current"]')).toHaveCount(3);
+    await expect(key.locator('[data-kind="next"]')).toHaveText('F');
+    await expect(key.locator('[data-pitch="7"]')).toHaveCount(0);
+    await expect(canvas).toHaveAttribute('data-preview-chord', '3');
     await page.getByRole('button', { name: 'Hide note lines' }).tap();
     await expect(key).toHaveCount(0);
   });

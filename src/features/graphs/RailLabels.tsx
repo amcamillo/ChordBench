@@ -3,14 +3,15 @@ import { CHROMATIC } from '../../domain/graphs/fifthsTime.ts';
 import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
 import type { PianoNote } from '../../domain/instruments/voicings.ts';
 import type { ThreeFifthsScene } from './threeFifthsScene.ts';
+import type { TimeChord } from '../../domain/graphs/fifthsTime.ts';
 
 type Point = { x: number; y: number };
-type Rail = { pitch: number; candidates: Point[] };
+type Rail = { pitch: number; candidates: Point[]; kind: 'current' | 'next' };
 interface Props {
   canvas: RefObject<HTMLCanvasElement | null>; scene: RefObject<ThreeFifthsScene | null>;
-  notes: PianoNote[] | undefined; yaw: number; tilt: number; zoom: number; rendererStatus: string;
+  current: TimeChord; next: TimeChord | undefined; notes: PianoNote[] | undefined; nextNotes: PianoNote[] | undefined; playing: boolean; yaw: number; tilt: number; zoom: number; rendererStatus: string;
 }
-interface LabelPosition { pitch: number; x: number; y: number }
+interface LabelPosition { pitch: number; x: number; y: number; kind: 'current' | 'next' }
 
 // Choose actual visible points along each rail. Avoid collisions without pulling a
 // label away from the rail or adding long leaders across the chord visualization.
@@ -33,12 +34,12 @@ function placeLabels(rails: Rail[], width: number, height: number): LabelPositio
       }
       if (cost < bestCost) { best = point; bestCost = cost; }
     }
-    positions.push({ pitch: rail.pitch, x: best.x, y: best.y });
+    positions.push({ pitch: rail.pitch, x: best.x, y: best.y, kind: rail.kind });
   }
   return positions;
 }
 
-export function RailLabels({ canvas, scene, notes, yaw, tilt, zoom, rendererStatus }: Props) {
+export function RailLabels({ canvas, scene, current, next, notes, nextNotes, playing, yaw, tilt, zoom, rendererStatus }: Props) {
   const [positions, setPositions] = useState<LabelPosition[]>([]);
   useEffect(() => {
     const element = canvas.current, stage = element?.parentElement;
@@ -48,18 +49,27 @@ export function RailLabels({ canvas, scene, notes, yaw, tilt, zoom, rendererStat
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         if (!element.clientWidth || !element.clientHeight) return;
-        setPositions(placeLabels(scene.current?.railPositions() ?? [], element.clientWidth, element.clientHeight));
+        const currentPitches = new Set(current.notes.map(note => note.pitch));
+        const nextPitches = new Set(next?.notes.map(note => note.pitch) ?? []);
+        const rails: Rail[] = (scene.current?.railPositions() ?? []).flatMap(rail => {
+          const kind = currentPitches.has(rail.pitch) ? 'current' : nextPitches.has(rail.pitch) ? 'next' : null;
+          return kind ? [{ pitch: rail.pitch, candidates: kind === 'current' ? rail.current : rail.next, kind }] : [];
+        });
+        setPositions(placeLabels(rails, element.clientWidth, element.clientHeight));
       });
     };
     const observer = new ResizeObserver(measure); observer.observe(stage); observer.observe(element); measure();
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); };
-  }, [canvas, scene, yaw, tilt, zoom, rendererStatus]);
+    const timer = playing ? window.setInterval(measure, 120) : undefined;
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); if (timer) clearInterval(timer); };
+  }, [canvas, scene, current, next, playing, yaw, tilt, zoom, rendererStatus]);
   return <div className="rail-labels" role="list" aria-label="Pitch-class rail labels">
     {positions.map(position => {
       const pitch = CHROMATIC[position.pitch];
-      const midi = unambiguousPitch(notes, position.pitch);
-      return <div role="listitem" className="rail-label" key={position.pitch} data-pitch={position.pitch} title={`${pitch.label} pitch class; octaves share this rail`} style={{ left: position.x, top: position.y }}>
-        <i aria-hidden="true" style={{ background: noteColor(midi) }}/><span>{pitch.label}</span>
+      const midi = unambiguousPitch(position.kind === 'current' ? notes : nextNotes, position.pitch);
+      const chord = position.kind === 'current' ? current : next;
+      const spelling = chord?.notes.find(note => note.pitch === position.pitch)?.spelling ?? pitch.label;
+      return <div role="listitem" className={`rail-label ${position.kind === 'next' ? 'rail-label-next' : 'rail-label-current'}`} key={position.pitch} data-pitch={position.pitch} data-kind={position.kind} title={`${spelling}, ${position.kind} chord; octaves share this rail`} style={{ left: position.x, top: position.y }}>
+        <i aria-hidden="true" style={{ background: noteColor(midi) }}/><span>{spelling}</span>
       </div>;
     })}
   </div>;

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CHROMATIC, noteRailPoint, sharedPitchClasses } from '../../domain/graphs/fifthsTime.ts';
+import { CHROMATIC, noteRailPoint } from '../../domain/graphs/fifthsTime.ts';
 import type { TimeChord } from '../../domain/graphs/fifthsTime.ts';
 import { cameraPosition } from '../../domain/graphs/fifthsCamera.ts';
 import { GROOVES, meterFrame, overviewPoint, overviewX, rhythmEvents, type VisualRhythm } from '../../domain/graphs/rhythm.ts';
@@ -58,6 +58,7 @@ export class ThreeFifthsScene {
   private morph: ReturnType<typeof buildFocusedChord> | null = null;
   private morphProgress = 0;
   private motionProbe: THREE.Mesh | null = null;
+  private chordLayers: { index: number; group: THREE.Group }[] = [];
   private anchor = 0;
   private readonly raycaster = new THREE.Raycaster();
   private readonly resize: ResizeObserver;
@@ -137,13 +138,12 @@ export class ThreeFifthsScene {
   /** Project the fixed pitch-class rails at the focused chord plane. */
   railPositions() {
     this.camera.updateMatrixWorld();
-    return CHROMATIC.map(note => ({
-      pitch: note.pitch,
-      candidates: Array.from({ length: 49 }, (_, i) => point(note.pitch, 2 - i * .35).project(this.camera))
-        .filter(p => p.z >= -1 && p.z <= 1)
-        .map(p => ({ x: (p.x + 1) / 2, y: (1 - p.y) / 2 }))
-        .filter(p => p.x >= .03 && p.x <= .97 && p.y >= .03 && p.y <= .97),
-    }));
+    const progress = Math.max(0, Math.min(1, this.position - this.focus));
+    const candidates = (pitch: number, z: number) => Array.from({ length: 9 }, (_, i) => point(pitch, z + .4 - i * .1).project(this.camera))
+      .filter(p => p.z >= -1 && p.z <= 1)
+      .map(p => ({ x: (p.x + 1) / 2, y: (1 - p.y) / 2 }))
+      .filter(p => p.x >= .03 && p.x <= .97 && p.y >= .03 && p.y <= .97);
+    return CHROMATIC.map(note => ({ pitch: note.pitch, current: candidates(note.pitch, 0), next: candidates(note.pitch, -SPACING + progress * SPACING) }));
   }
 
   setData(chords: TimeChord[], focus: number, selectedPitch: number | null, overview = false, rhythm: VisualRhythm = { groove: GROOVES[0], meter: '4/4' }, timingVisible = true, voicings: readonly { id: string; notes: PianoNote[] }[] = []) {
@@ -164,10 +164,10 @@ export class ThreeFifthsScene {
       this.focus = focus; this.setPosition(this.playbackPosition?.() ?? focus); return;
     }
     if (!overview && !this.overview && this.lastChords === chords && this.lastRhythm === rhythm && this.lastVoicings === voicings && focus >= this.anchor && focus < this.anchor + LAYERS - 2) {
-      this.focus = focus; this.setPosition(this.playbackPosition?.() ?? focus); return;
+      this.focus = focus; this.updateChordVisibility(); this.setPosition(this.playbackPosition?.() ?? focus); return;
     }
     this.lastChords = chords; this.lastRhythm = rhythm; this.lastVoicings = voicings;
-    disposeTree(this.data); this.data.clear(); this.motionProbe = null;
+    disposeTree(this.data); this.data.clear(); this.motionProbe = null; this.chordLayers = [];
     this.overview = overview; this.focus = focus; this.anchor = focus; this.count = chords.length; this.cursor = null;
     this.scene.fog = overview ? null : new THREE.FogExp2(0xf6f8ff, .025);
     this.canvas.dataset.scope = overview ? 'whole' : 'detail';
@@ -224,32 +224,36 @@ export class ThreeFifthsScene {
         }
         this.data.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(accents), new THREE.LineBasicMaterial({ color: 0xcc631d, transparent: true, opacity: .65 })));
       }
+      const layer = new THREE.Group();
+      this.chordLayers.push({ index: chordIndex, group: layer });
+      this.data.add(layer);
       const chordPoints = chord.notes.map(note => backgroundPoint(note.pitch));
       if (chordPoints.length > 1) {
         const outline = chordPoints.length > 2 ? [...chordPoints, chordPoints[0]] : chordPoints;
-        this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(outline), new THREE.LineBasicMaterial({ color: 0x7542d4, transparent: true, opacity: .3, depthWrite: false })));
+        layer.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(outline), new THREE.LineBasicMaterial({ color: 0x7542d4, transparent: true, opacity: .22, depthWrite: false })));
       }
       chord.notes.forEach(note => {
         const isSelected = chordIndex === focus && note.pitch === selectedPitch;
         const color = noteColor(unambiguousPitch(byId.get(chord.id), note.pitch));
-        const mesh = new THREE.Mesh(new THREE.SphereGeometry(note.root ? .115 : .085, 20, 14), new THREE.MeshBasicMaterial({ color, fog: false, toneMapped: false }));
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(note.root ? .115 : .085, 20, 14), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .38, depthWrite: false, fog: false, toneMapped: false }));
         mesh.position.copy(backgroundPoint(note.pitch)); mesh.userData.pitch = note.pitch;
         if (!this.motionProbe) this.motionProbe = mesh;
         if (note.root || isSelected) {
-          const ring = new THREE.Mesh(new THREE.TorusGeometry(isSelected ? .18 : .15, .018, 6, 20), new THREE.MeshBasicMaterial({ color: 0x19243a, fog: false, toneMapped: false }));
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(isSelected ? .18 : .15, .018, 6, 20), new THREE.MeshBasicMaterial({ color: 0x19243a, transparent: true, opacity: .38, depthWrite: false, fog: false, toneMapped: false }));
           ring.position.z = .03; mesh.add(ring);
         }
-        this.data.add(mesh);
+        layer.add(mesh);
       });
-      const next = visible[index + 1];
-      if (next) for (const pitch of sharedPitchClasses(chord, next)) {
-        const coords = [backgroundPoint(pitch), point(pitch, z - SPACING)];
-        this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords), new THREE.LineBasicMaterial({ color: 0x087d9f, transparent: true, opacity: .9, depthWrite: false })));
-      }
+
     });
+    this.updateChordVisibility();
     this.setPosition(this.playbackPosition?.() ?? focus);
   }
 
+  private updateChordVisibility() {
+    for (const layer of this.chordLayers) layer.group.visible = layer.index === this.focus + 1;
+    this.canvas.dataset.previewChord = this.focus + 1 < this.count ? String(this.focus + 2) : '';
+  }
 
   private updateTimingTrack() {
     if (!this.track) return;
