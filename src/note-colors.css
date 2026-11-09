@@ -44,3 +44,7 @@
 .rail-label-next i { opacity: .55; }
 
 .dna-whole-toggle { position: absolute; z-index: 4; left: 10px; bottom: 10px; min-height: 44px; }
+
+.time-stage.is-whole-song .time-canvas { touch-action: none; }
+.dna-orbit-controls { position: absolute; z-index: 4; right: 8px; top: 8px; display: flex; gap: 4px; }
+.dna-orbit-controls button { min-width: 44px; min-height: 44px; padding: 6px 10px; }

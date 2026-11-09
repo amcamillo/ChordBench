@@ -116,3 +116,43 @@ test('session whole-song strand includes every occurrence in a long chart', asyn
   await expect(canvas).toHaveAttribute('data-last', '240');
   await expect(page.locator('.dna-compact-summary')).toContainText('All 240 chords');
 });
+
+test('whole-song view supports unrestricted orbit, buttons, wheel and pinch zoom', async ({ page, context }) => {
+  await page.setViewportSize({ width: 375, height: 740 });
+  await page.goto('/');
+  await page.getByRole('navigation', { name: 'Session views' }).getByRole('button', { name: 'Song DNA' }).tap();
+  await page.getByRole('button', { name: 'See the whole song DNA' }).tap();
+  const canvas = page.locator('.session-dna .time-canvas');
+  await expect(canvas).toHaveAttribute('data-scope', 'whole');
+  const box = (await canvas.boundingBox())!;
+  const x = box.x + box.width * .5, y = box.y + box.height * .5;
+  await page.mouse.move(x, y);
+  await page.mouse.down(); await page.mouse.move(x + 150, y + 150, { steps: 5 }); await page.mouse.up();
+  expect(Math.abs(Number(await canvas.getAttribute('data-view-yaw')))).toBeGreaterThan(.75);
+  expect(Math.abs(Number(await canvas.getAttribute('data-view-tilt')))).toBeGreaterThan(.75);
+  for (let i = 0; i < 2; i++) {
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 150, y + 150, { steps: 5 }); await page.mouse.up();
+  }
+  expect(Number(await canvas.getAttribute('data-view-yaw'))).toBeLessThan(-1);
+  expect(Number(await canvas.getAttribute('data-view-tilt'))).toBeLessThan(-1);
+  const rotatedEnds: number[][] = JSON.parse((await canvas.getAttribute('data-overview-ends'))!);
+  await canvas.tap({ position: { x: (rotatedEnds[1][0] + 1) * box.width / 2, y: (1 - rotatedEnds[1][1]) * box.height / 2 } });
+  await expect(canvas).toHaveAttribute('data-position', '11.000');
+  const initial = Number(await canvas.getAttribute('data-view-zoom'));
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).tap();
+  await expect.poll(async () => Number(await canvas.getAttribute('data-view-zoom'))).toBeGreaterThan(initial);
+  await page.getByRole('button', { name: 'Zoom out', exact: true }).tap();
+  await page.mouse.move(x, y); await page.mouse.wheel(0, -200);
+  await expect.poll(async () => Number(await canvas.getAttribute('data-view-zoom'))).toBeGreaterThan(initial);
+  const beforePinch = Number(await canvas.getAttribute('data-view-zoom'));
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x - 30, y, id: 1 }, { x: x + 30, y, id: 2 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - 75, y, id: 1 }, { x: x + 75, y, id: 2 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect.poll(async () => Number(await canvas.getAttribute('data-view-zoom'))).toBeGreaterThan(beforePinch * 1.5);
+  await page.getByRole('button', { name: 'Reset', exact: true }).tap();
+  await expect(canvas).toHaveAttribute('data-view-zoom', '1.1000');
+  await expect(canvas).toHaveAttribute('data-view-yaw', '0.1500');
+  await page.getByRole('button', { name: 'Return to chord detail' }).tap();
+  await expect(canvas).toHaveAttribute('data-view-zoom', '1.5500');
+});

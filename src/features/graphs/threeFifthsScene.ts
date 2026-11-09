@@ -111,6 +111,7 @@ export class ThreeFifthsScene {
 
   setView(yaw: number, tilt: number, zoom: number) {
     this.yaw = yaw; this.tilt = tilt; this.zoom = zoom;
+    this.canvas.dataset.viewYaw = yaw.toFixed(4); this.canvas.dataset.viewTilt = tilt.toFixed(4); this.canvas.dataset.viewZoom = zoom.toFixed(4);
     this.updateCamera(); this.render();
   }
 
@@ -119,11 +120,14 @@ export class ThreeFifthsScene {
     if (this.overview) {
       // Keep both ends of the song visible while viewing the circular layers obliquely.
       const distance = Math.max(25, 23 / Math.max(.1, this.camera.aspect)) / Math.tan(21 * Math.PI / 180) / zoom;
-      const angle = .55 + yaw * .5;
+      const angle = .55 + yaw;
+      const elevation = tilt;
       this.camera.far = Math.max(100, distance * 3); this.camera.updateProjectionMatrix();
-      this.camera.position.set(Math.sin(angle) * distance, Math.sin(tilt * .5) * distance, Math.cos(angle) * distance);
+      this.camera.position.set(Math.sin(angle) * Math.cos(elevation) * distance, Math.sin(elevation) * distance, Math.cos(angle) * Math.cos(elevation) * distance);
+      this.camera.up.set(-Math.sin(angle) * Math.sin(elevation), Math.cos(elevation), -Math.cos(angle) * Math.sin(elevation));
       this.camera.lookAt(0, 0, 0);
     } else {
+      this.camera.up.set(0, 1, 0);
       const position = cameraPosition(this.camera.aspect, yaw, tilt, zoom);
       const targetZ = 0;
       this.camera.position.set(position.x, position.y, position.z + 5.4 + targetZ);
@@ -345,10 +349,19 @@ export class ThreeFifthsScene {
   pickOccurrence(clientX: number, clientY: number): number | null {
     if (!this.overview || !this.count) return null;
     const rect = this.canvas.getBoundingClientRect();
-    this.raycaster.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), this.camera);
-    const hit = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
-    if (!hit || hit.x < -17 || hit.x > 18) return null;
-    return Math.max(0, Math.min(this.count - 1, Math.round((hit.x + 16) / 32 * (this.count - 1))));
+    if (!rect.width || !rect.height) return null;
+    // Select the closest projected chord axis position, including when the camera
+    // is edge-on to the old z=0 picking plane.
+    let best = -1, bestDistance = 64 * 64;
+    for (let i = 0; i < this.count; i++) {
+      const projected = new THREE.Vector3(overviewX(i, this.count), 0, 0).project(this.camera);
+      if (projected.z < -1 || projected.z > 1) continue;
+      const x = rect.left + (projected.x + 1) * rect.width / 2;
+      const y = rect.top + (1 - projected.y) * rect.height / 2;
+      const distance = (clientX - x) ** 2 + (clientY - y) ** 2;
+      if (distance < bestDistance) { best = i; bestDistance = distance; }
+    }
+    return best < 0 ? null : best;
   }
 
   dispose() {

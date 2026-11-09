@@ -38,7 +38,10 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
   const [yaw, setYaw] = useState(.15);
   const [tilt, setTilt] = useState(.4);
   const [zoom, setZoom] = useState(compact ? 1.55 : 1);
-  const detailZoom = useRef(zoom);
+  const detailView = useRef({ yaw, tilt, zoom });
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+  const gestureMoved = useRef(false);
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [rendererStatus, setRendererStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
   const [rendererError, setRendererError] = useState('');
@@ -111,10 +114,21 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
 
   function changeScope(whole: boolean) {
     if (whole === overview) return;
-    if (whole) { detailZoom.current = zoom; setZoom(1.1); }
-    else setZoom(detailZoom.current);
+    if (whole) { detailView.current = { yaw, tilt, zoom }; setYaw(.15); setTilt(.4); setZoom(1.1); }
+    else { setYaw(detailView.current.yaw); setTilt(detailView.current.tilt); setZoom(detailView.current.zoom); }
+    pointers.current.clear(); pinch.current = null; drag.current = null;
     setOverview(whole);
   }
+  const clampZoom = (value: number) => Math.max(.35, Math.min(3.5, value));
+  const wrapAngle = (value: number) => ((value + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+  useEffect(() => {
+    const element = canvas.current;
+    if (!element || !overview) return;
+    const wheel = (event: WheelEvent) => { event.preventDefault(); setZoom(value => clampZoom(value * Math.exp(-event.deltaY * .001))); };
+    element.addEventListener('wheel', wheel, { passive: false });
+    return () => element.removeEventListener('wheel', wheel);
+  }, [overview, rendererStatus]);
+  function resetView() { setYaw(.15); setTilt(.4); setZoom(overview ? 1.1 : compact ? 1.55 : 1); }
   function goTo(index: number) {
     const chord = chords[index];
     if (!chord || stale) return;
@@ -132,13 +146,49 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
       <div className="dna-scope" role="group" aria-label="Song DNA scope"><button aria-pressed={!overview} onClick={() => changeScope(false)}>Chord detail</button><button aria-pressed={overview} onClick={() => changeScope(true)}>Whole song</button><span>{overview ? `All ${chords.length} written chords, first to last` : 'Nearby chords with individual note selection'}</span></div>
       <RhythmPanel rhythm={rhythm} onChange={setRhythm} count={chords.length}/>
       {overview && rhythm.groove.steps.length > 0 && <p className="dna-overview-note">All chords shown; orange rhythm motifs are enlarged examples.</p>}
-      <div className={`time-stage ${showRailLabels && !overview ? 'show-rail-labels' : ''}`}>
+      <div className={`time-stage ${showRailLabels && !overview ? 'show-rail-labels' : ''} ${overview ? 'is-whole-song' : ''}`}>
         <canvas ref={canvas} className="time-canvas" data-renderer={rendererStatus === 'ready' ? 'webgl' : rendererStatus} role="img" aria-label="3D orbital view of chord tones on a chromatic note circle extending through the written chart; use the chord and note controls below for an equivalent description"
-          onPointerDown={event => { if (stale) return; drag.current = { x: event.clientX, y: event.clientY, yaw, tilt, moved: false }; event.currentTarget.setPointerCapture(event.pointerId); }}
-          onPointerMove={event => { const d = drag.current; if (!d) return; const dx = event.clientX - d.x, dy = event.clientY - d.y; if (Math.abs(dx) + Math.abs(dy) > 7) d.moved = true; if (d.moved) { setYaw(Math.max(-.75, Math.min(.75, d.yaw + dx * .004))); setTilt(Math.max(-.65, Math.min(.75, d.tilt + dy * .004))); } }}
-          onPointerUp={event => { const d = drag.current; drag.current = null; if (!d || d.moved) return; const occurrence = scene.current?.pickOccurrence(event.clientX, event.clientY); if (occurrence !== null && occurrence !== undefined) { goTo(occurrence); return; } const hit = scene.current?.pick(event.clientX, event.clientY); if (hit !== null && hit !== undefined) selectNote(hit); }}
-          onPointerCancel={() => { drag.current = null; }}/>
+          onPointerDown={event => {
+            if (stale) return;
+            if (overview) {
+              if (!pointers.current.size) gestureMoved.current = false;
+              pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+              if (pointers.current.size === 2) {
+                const [a, b] = [...pointers.current.values()];
+                pinch.current = { distance: Math.hypot(a.x - b.x, a.y - b.y), zoom };
+                drag.current = null; gestureMoved.current = true;
+              } else if (pointers.current.size === 1) drag.current = { x: event.clientX, y: event.clientY, yaw, tilt, moved: false };
+            } else { gestureMoved.current = false; drag.current = { x: event.clientX, y: event.clientY, yaw, tilt, moved: false }; }
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={event => {
+            if (overview && pointers.current.has(event.pointerId)) {
+              pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+              if (pinch.current && pointers.current.size >= 2) {
+                const [a, b] = [...pointers.current.values()];
+                if (pinch.current.distance > 0) setZoom(clampZoom(pinch.current.zoom * Math.hypot(a.x - b.x, a.y - b.y) / pinch.current.distance));
+                return;
+              }
+            }
+            const d = drag.current; if (!d) return;
+            const dx = event.clientX - d.x, dy = event.clientY - d.y;
+            if (Math.abs(dx) + Math.abs(dy) > 7) d.moved = true;
+            if (d.moved) {
+              gestureMoved.current = true;
+              setYaw(overview ? wrapAngle(d.yaw + dx * .008) : Math.max(-.75, Math.min(.75, d.yaw + dx * .004)));
+              setTilt(overview ? wrapAngle(d.tilt + dy * .008) : Math.max(-.65, Math.min(.75, d.tilt + dy * .004)));
+            }
+          }}
+          onPointerUp={event => {
+            if (overview) { pointers.current.delete(event.pointerId); if (pinch.current) { pinch.current = null; drag.current = null; return; } }
+            const d = drag.current; drag.current = null;
+            if (!d || d.moved || gestureMoved.current) return;
+            const occurrence = scene.current?.pickOccurrence(event.clientX, event.clientY); if (occurrence !== null && occurrence !== undefined) { goTo(occurrence); return; }
+            const hit = scene.current?.pick(event.clientX, event.clientY); if (hit !== null && hit !== undefined) selectNote(hit);
+          }}
+          onPointerCancel={event => { pointers.current.delete(event.pointerId); pinch.current = null; drag.current = null; }}/>
         {compact && <button className="dna-whole-toggle" type="button" aria-pressed={overview} onClick={() => changeScope(!overview)}>{overview ? 'Return to chord detail' : 'See the whole song DNA'}</button>}
+        {overview && <div className="dna-orbit-controls" role="group" aria-label="Whole-song view controls"><button type="button" aria-label="Zoom out" onClick={() => setZoom(value => clampZoom(value / 1.25))}>-</button><button type="button" aria-label="Zoom in" onClick={() => setZoom(value => clampZoom(value * 1.25))}>+</button><button type="button" onClick={resetView}>Reset</button></div>}
         {!overview && <button className="rail-label-toggle" type="button" aria-pressed={showRailLabels} onClick={() => setShowRailLabels(!showRailLabels)}>{showRailLabels ? 'Hide note lines' : 'Label note lines'}</button>}
         {showRailLabels && !overview && <RailLabels canvas={canvas} scene={scene} current={current} next={next} notes={visualVoicings.find(item => item.id === current.id)?.notes} nextNotes={visualVoicings.find(item => item.id === next?.id)?.notes} playing={follow && playbackState === 'playing' && !reducedMotion} yaw={yaw} tilt={tilt} zoom={zoom} rendererStatus={rendererStatus}/>}
 
@@ -156,14 +206,14 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
       </div>
       {compact && <div className="dna-compact-summary">
         <div className="dna-compact-line"><strong>{current.symbol} <span aria-hidden="true">→</span> {next?.symbol ?? 'End'}</strong><span className="dna-voicing-label">Suggested piano</span><button onClick={() => compactOptions.current?.showModal()}>3D options</button></div>
-        <p>{overview ? `All ${chords.length} chords in written order. Tap the strand to explore.` : voiceEnabled ? compactMovements ?? (next ? 'Both chords must resolve to compare voices.' : 'Last chord in chart.') : 'Voice-leading paths are off.'}</p>
+        <p>{overview ? `All ${chords.length} chords. Drag to rotate; pinch or use + and - to zoom.` : voiceEnabled ? compactMovements ?? (next ? 'Both chords must resolve to compare voices.' : 'Last chord in chart.') : 'Voice-leading paths are off.'}</p>
         <dialog ref={compactOptions} className="dna-compact-options" aria-labelledby="dna-compact-options-heading"><div className="dna-compact-options-header"><h2 id="dna-compact-options-heading">3D options</h2><button onClick={() => compactOptions.current?.close()}>Close</button></div>
           <DnaVoiceLeading candidates={candidates} choice={voiceChoice} onChoice={changeVoice} enabled={voiceEnabled} onToggle={setVoiceEnabled} disabled={stale} hasNext={!!next} guidedPlayback={guidedPlayback}/>
           <label className="time-follow"><input type="checkbox" checked={guidedPlayback} onChange={event => onGuidedPlayback?.(event.target.checked)}/> Use suggested voicings for piano playback</label>
           <label className="time-follow"><input type="checkbox" checked={follow} onChange={event => setFollow(event.target.checked)}/> Follow playback</label>
           <label className="time-follow"><input type="checkbox" checked={timingVisible} onChange={event => setTimingVisible(event.target.checked)}/> Timing guide &amp; beat cues</label>
-          <div className="time-sliders"><label>View angle<input type="range" min="-0.75" max="0.75" step="0.05" value={yaw} onChange={event => setYaw(Number(event.target.value))} aria-label="Session 3D view angle"/></label><label>View tilt<input type="range" min="-0.65" max="0.75" step="0.05" value={tilt} onChange={event => setTilt(Number(event.target.value))} aria-label="Session 3D view tilt"/></label><label>Zoom<input type="range" min="0.7" max="1.8" step="0.05" value={zoom} onChange={event => setZoom(Number(event.target.value))} aria-label="Session 3D view zoom"/></label></div>
-          <button onClick={() => { setYaw(.15); setTilt(.4); setZoom(1.55); }}>Reset 3D view</button>
+          <div className="time-sliders"><label>View angle<input type="range" min={overview ? -3.15 : -.75} max={overview ? 3.15 : .75} step="0.05" value={yaw} onChange={event => setYaw(Number(event.target.value))} aria-label="Session 3D view angle"/></label><label>View tilt<input type="range" min={overview ? -3.15 : -.65} max={overview ? 3.15 : .75} step="0.05" value={tilt} onChange={event => setTilt(Number(event.target.value))} aria-label="Session 3D view tilt"/></label><label>Zoom<input type="range" min={overview ? .35 : .7} max={overview ? 3.5 : 1.8} step="0.05" value={zoom} onChange={event => setZoom(Number(event.target.value))} aria-label="Session 3D view zoom"/></label></div>
+          <button onClick={resetView}>Reset 3D view</button>
           <p>Warm red means lower pitch and cool blue means higher pitch on a fixed scale. Neutral notes have no single displayed octave. Paths illustrate the chosen piano voicing, not an inferred rhythm or fingering. The same pitch does not imply a sustained note. Use Score for individual note auditions and notation.</p>
         </dialog>
       </div>}
@@ -171,13 +221,13 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
       <p className="dna-time-hint">{overview ? "Time line: one mark per written chord; the moving line follows playback." : "Focused chord stays pinned; background chords travel along the time line. The bottom-right guide shows the selected visual meter and groove; its moving marker follows playback. Playback still assumes one 4/4 bar per chord. Shapes anticipate changes by 180 ms; audio stays on the beat."}</p>
       {!compact && <DnaVoiceLeading candidates={candidates} choice={voiceChoice} onChoice={changeVoice} enabled={voiceEnabled} onToggle={setVoiceEnabled} disabled={stale} hasNext={!!next}/>}
       {overview && <ChordLens chord={current} disabled={stale} onDive={() => { setFollow(false); onSelect(current.id); changeScope(false); }}/>}
-      <div className="time-controls"><div className="time-control-group"><button disabled={stale || focus === 0} onClick={() => goTo(focus - 1)}>Previous chord</button><button disabled={stale || focus >= chords.length - 1} onClick={() => goTo(focus + 1)}>Next chord</button><button onClick={() => { setYaw(.15); setTilt(.4); setZoom(1); }}>Reset view</button></div>
+      <div className="time-controls"><div className="time-control-group"><button disabled={stale || focus === 0} onClick={() => goTo(focus - 1)}>Previous chord</button><button disabled={stale || focus >= chords.length - 1} onClick={() => goTo(focus + 1)}>Next chord</button><button onClick={resetView}>Reset view</button></div>
         {!compact && <label className="time-follow"><input type="checkbox" checked={follow} onChange={event => setFollow(event.target.checked)}/> Follow playback</label>}
         {reducedMotion && <span className="time-motion-note">Playback movement reduced by device setting.</span>}
       </div>
       <div className="dna-jump"><label>Jump to chord<input type="number" min="1" max={chords.length} value={focus + 1} disabled={stale} onChange={event => { const n = event.target.valueAsNumber; if (Number.isInteger(n)) goTo(n - 1); }}/></label><label>Jump to section<select value={String(chords.reduce((start, chord, index) => index <= focus && (index === 0 || chord.section !== chords[index - 1].section) ? index : start, 0))} disabled={stale} onChange={event => goTo(Number(event.target.value))}>{chords.flatMap((chord, index) => index === 0 || chord.section !== chords[index - 1].section ? [<option key={chord.id} value={index}>{chord.section} - chord {index + 1}</option>] : [])}</select></label></div>
       <div className="time-sliders"><label>Chord position <span>{focus + 1} of {chords.length}</span><input type="range" min={1} max={Math.max(1, chords.length)} step={1} value={focus + 1} disabled={stale || chords.length < 2} onChange={event => goTo(Number(event.target.value) - 1)} aria-label="Chord position"/></label></div>
-      <details className="dna-view-options"><summary>View controls</summary><div className="time-sliders"><label>View angle <input type="range" min="-0.75" max="0.75" step="0.05" value={yaw} onChange={event => setYaw(Number(event.target.value))} aria-label="View angle"/></label><label>View tilt <input type="range" min="-0.65" max="0.75" step="0.05" value={tilt} onChange={event => setTilt(Number(event.target.value))} aria-label="View tilt"/></label><label>Zoom <input type="range" min="0.7" max="1.3" step="0.05" value={zoom} onChange={event => setZoom(Number(event.target.value))} aria-label="3D view zoom"/></label></div></details>
+      <details className="dna-view-options"><summary>View controls</summary><div className="time-sliders"><label>View angle <input type="range" min={overview ? -3.15 : -.75} max={overview ? 3.15 : .75} step="0.05" value={yaw} onChange={event => setYaw(Number(event.target.value))} aria-label="View angle"/></label><label>View tilt <input type="range" min={overview ? -3.15 : -.65} max={overview ? 3.15 : .75} step="0.05" value={tilt} onChange={event => setTilt(Number(event.target.value))} aria-label="View tilt"/></label><label>Zoom <input type="range" min={overview ? .35 : .7} max={overview ? 3.5 : 1.3} step="0.05" value={zoom} onChange={event => setZoom(Number(event.target.value))} aria-label="3D view zoom"/></label></div></details>
       <div className="time-legend"><span><i className="time-legend-root"/>Root</span><span><i className="time-legend-tone"/>Chord tone</span><span><i className="time-legend-lane"/>Pitch-class lane</span></div>
       <div className="time-explanation"><div><h3>{current.symbol} <span>· {current.section}</span></h3>{current.unresolved ? <p>This symbol is unresolved, so no notes or relationships are guessed.</p> : <><p>{current.notes.map(note => `${note.spelling} (${note.interval})`).join(' · ')}{current.bass ? ` · requested bass ${current.bass}` : ''}</p>{!isSelected && <p>Inspect this chord to select its notes.</p>}<div className="time-note-buttons" aria-label={`Notes in ${current.symbol}`}>{current.notes.map((note, i) => { const midi = unambiguousPitch(visualVoicings.find(item => item.id === current.id)?.notes, note.pitch); return <button className={`orbital-note ${note.root ? 'orbital-root' : 'orbital-tone'}`} data-note-midi={midi ?? undefined} data-note-color={noteColor(midi)} style={noteStyle(midi)} key={`${note.pitch}-${i}`} disabled={stale || !isSelected} aria-pressed={isSelected && note.pitch === selectedPitch} title={midi === null ? 'Octave not uniquely represented' : `Suggested pitch ${spelledMidiName(midi, note.spelling)}`} onClick={() => selectNote(note.pitch)}>{note.spelling}<small>{note.root ? 'root' : note.interval}</small></button>; })}</div></>}{!isSelected && <button className="time-inspect" disabled={stale} onClick={() => { setFollow(false); onSelect(current.id); }}>Inspect this chord</button>}
       </div><div><h3>What connects next</h3>{!next ? <p>End of the written chart. The lanes continue visually, but no more chords are inferred.</p> : current.unresolved || next.unresolved ? <p>{current.symbol} → {next.symbol}: an unresolved symbol prevents a note comparison.</p> : <p>{current.symbol} → {next.symbol}: {shared.length ? `${shared.length} shared pitch class${shared.length === 1 ? '' : 'es'} (${shared.map(pc => current.notes.find(note => note.pitch === pc)?.spelling).join(', ')}).` : 'no shared pitch classes.'} Shared pitch classes do not imply a particular fingering, octave or sustained note.</p>}</div></div>
