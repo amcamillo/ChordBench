@@ -117,11 +117,12 @@ export class ThreeFifthsScene {
   private updateCamera() {
     const { yaw, tilt, zoom } = this;
     if (this.overview) {
-      const targetX = overviewX(this.position, this.count);
-      const distance = Math.max(8.5, (20 + Math.abs(targetX)) / Math.max(.1, this.camera.aspect)) / Math.tan(21 * Math.PI / 180) / zoom;
+      // Keep both ends of the song visible while viewing the circular layers obliquely.
+      const distance = Math.max(25, 23 / Math.max(.1, this.camera.aspect)) / Math.tan(21 * Math.PI / 180) / zoom;
+      const angle = .55 + yaw * .5;
       this.camera.far = Math.max(100, distance * 3); this.camera.updateProjectionMatrix();
-      this.camera.position.set(targetX + Math.sin(yaw * .5) * distance, Math.sin(tilt * .5) * distance, distance);
-      this.camera.lookAt(targetX, 0, 0);
+      this.camera.position.set(Math.sin(angle) * distance, Math.sin(tilt * .5) * distance, Math.cos(angle) * distance);
+      this.camera.lookAt(0, 0, 0);
     } else {
       const position = cameraPosition(this.camera.aspect, yaw, tilt, zoom);
       const targetZ = 0;
@@ -130,6 +131,10 @@ export class ThreeFifthsScene {
     }
     this.camera.updateMatrixWorld();
     const center = new THREE.Vector3(this.overview ? overviewX(this.focus, this.count) : 0, 0, 0).project(this.camera);
+    if (this.overview) {
+      const ends = [-16, 16].map(x => new THREE.Vector3(x, 0, 0).project(this.camera));
+      this.canvas.dataset.overviewEnds = JSON.stringify(ends.map(p => [p.x, p.y]));
+    }
     this.canvas.dataset.focusX = center.x.toFixed(4);
     this.canvas.dataset.focusY = center.y.toFixed(4);
     this.updateTimingTrack();

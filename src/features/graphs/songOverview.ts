@@ -8,8 +8,17 @@ function lines(parent: THREE.Group, vertices: number[], color: number, opacity: 
   const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   parent.add(new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color, transparent: true, opacity })));
 }
+function noteMarker() {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+  context.fillStyle = '#fff'; context.beginPath(); context.arc(16, 16, 14, 0, Math.PI * 2); context.fill();
+  return new THREE.CanvasTexture(canvas);
+}
+
 export function buildSongOverview(parent: THREE.Group, chords: TimeChord[], rhythm: VisualRhythm, voicings: readonly { id: string; notes: PianoNote[] }[] = []) {
-  const roots: number[] = [], tones: number[] = [], outlines: number[] = [], links: number[] = [], bars: number[] = [], groove: number[] = [];
+  const roots: number[] = [], tones: number[] = [], outlines: number[] = [], links: number[] = [], bars: number[] = [], groove: number[] = [], guides: number[] = [];
   const rootColors: number[] = [], toneColors: number[] = [];
   const byId = new Map(voicings.map(item => [item.id, item.notes]));
   const vector = (pitch: number, position: number) => { const p = overviewPoint(pitch, position, chords.length); return [p.x, p.y, p.z]; };
@@ -24,6 +33,11 @@ export function buildSongOverview(parent: THREE.Group, chords: TimeChord[], rhyt
     });
     if (index + 1 < chords.length) for (const pitch of sharedPitchClasses(chord, chords[index + 1])) links.push(...vector(pitch, index), ...vector(pitch, index + 1));
     const x = overviewX(index, chords.length);
+    // Each occurrence keeps a circular chord layer, batched for long charts.
+    for (let step = 0; step < 24; step++) {
+      const a = step * Math.PI / 12, b = (step + 1) * Math.PI / 12;
+      guides.push(x, Math.cos(a) * 2, Math.sin(a) * 2, x, Math.cos(b) * 2, Math.sin(b) * 2);
+    }
     bars.push(x, -.12, 0, x, .12, 0);
     if (chord.unresolved) bars.push(x, -2.6, 0, x, 2.6, 0);
     if (index === 0 || chord.section !== chords[index - 1].section) bars.push(x, -3.6, 0, x, 3.3, 0);
@@ -43,12 +57,17 @@ export function buildSongOverview(parent: THREE.Group, chords: TimeChord[], rhyt
       bars.push(x, a.x, a.y, x, b.x, b.y);
     }
   }
+  if (chords.length > 1) for (let pitch = 0; pitch < 12; pitch++) {
+    guides.push(...vector(pitch, 0), ...vector(pitch, chords.length - 1));
+  }
+  lines(parent, guides, 0x817cbd, .22);
   lines(parent, [-16, 0, 0, 16, 0, 0], 0x7353d8, .8);
   lines(parent, outlines, 0x7542d4, .35); lines(parent, links, 0x087d9f, .7); lines(parent, bars, 0x9a6b35, .28); lines(parent, groove, 0xcc631d, .8);
-  for (const [vertices, colors, size] of [[roots, rootColors, .13], [tones, toneColors, .09]] as const) {
+  const marker = noteMarker();
+  for (const [vertices, colors, size] of [[roots, rootColors, 9], [tones, toneColors, 7]] as const) {
     const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    parent.add(new THREE.Points(geometry, new THREE.PointsMaterial({ vertexColors: true, size, sizeAttenuation: true, fog: false, toneMapped: false })));
+    parent.add(new THREE.Points(geometry, new THREE.PointsMaterial({ vertexColors: true, size, map: marker, transparent: true, alphaTest: .1, depthWrite: false, sizeAttenuation: false, fog: false, toneMapped: false })));
   }
   const cursor = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -5.5, 0), new THREE.Vector3(0, 3.8, 0)]), new THREE.LineBasicMaterial({ color: 0x263c91 }));
   parent.add(cursor);

@@ -42,3 +42,5 @@
 
 .rail-label-next { color: #55657a; border-color: #d6dce6; background: #f6f8fc; }
 .rail-label-next i { opacity: .55; }
+
+.dna-whole-toggle { position: absolute; z-index: 4; left: 10px; bottom: 10px; min-height: 44px; }

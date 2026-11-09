@@ -19,6 +19,19 @@ for (const [width, height] of [[320, 667], [375, 740], [820, 1180], [812, 375]])
     expect(box.height).toBeGreaterThan(100);
     expect(box.y + box.height).toBeLessThanOrEqual(height);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight && document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const toggle = page.getByRole('button', { name: 'See the whole song DNA' });
+    await toggle.tap();
+    await expect(canvas).toHaveAttribute('data-scope', 'whole');
+    await expect(canvas).toHaveAttribute('data-rendered', '12');
+    await expect(canvas).toHaveAttribute('data-first', '1');
+    await expect(canvas).toHaveAttribute('data-last', '12');
+    await expect(page.getByRole('button', { name: 'Return to chord detail' })).toHaveAttribute('aria-pressed', 'true');
+    const ends: number[][] = JSON.parse((await canvas.getAttribute('data-overview-ends'))!);
+    for (const [x, y] of ends) { expect(Math.abs(x)).toBeLessThan(1); expect(Math.abs(y)).toBeLessThan(1); }
+    await expect(page.locator('.dna-compact-summary')).toContainText('All 12 chords');
+    if (width === 375 || width === 820) await page.screenshot({ path: `test-results/whole-dna-${width}.png` });
+    await page.getByRole('button', { name: 'Return to chord detail' }).tap();
+    await expect(canvas).toHaveAttribute('data-scope', 'detail');
     if (width === 375 || width === 820) await page.screenshot({ path: `test-results/spatial-session-${width}.png` });
     await page.getByRole('button', { name: 'Next session chord' }).tap();
     await expect(page.locator('.dna-compact-summary')).toContainText('Am → F');
@@ -71,4 +84,35 @@ test('the score and voice summary remain usable without WebGL', async ({ page })
   await expect(page.getByRole('alert')).toContainText('could not start');
   await page.getByRole('button', { name: 'Score', exact: true }).tap();
   await expect(page.getByRole('button', { name: 'Hear change', exact: true })).toBeVisible();
+});
+
+test('whole-song strand can select the final chord and keep it when returning to detail', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 740 });
+  await page.goto('/');
+  await page.getByRole('navigation', { name: 'Session views' }).getByRole('button', { name: 'Song DNA' }).tap();
+  await page.getByRole('button', { name: 'See the whole song DNA' }).tap();
+  const canvas = page.locator('.session-dna .time-canvas');
+  await expect(canvas).toHaveAttribute('data-scope', 'whole');
+  const ends: number[][] = JSON.parse((await canvas.getAttribute('data-overview-ends'))!);
+  const size = (await canvas.boundingBox())!;
+  await canvas.tap({ position: { x: (ends[1][0] + 1) * size.width / 2, y: (1 - ends[1][1]) * size.height / 2 } });
+  await expect(canvas).toHaveAttribute('data-position', '11.000');
+  await page.getByRole('button', { name: 'Return to chord detail' }).tap();
+  await expect(page.locator('.dna-compact-summary')).toContainText('End');
+  await expect(canvas).toHaveAttribute('data-scope', 'detail');
+});
+
+test('session whole-song strand includes every occurrence in a long chart', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 740 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Setup', exact: true }).tap();
+  await page.getByLabel('Chords and lyrics').fill(Array(239).fill('C').join(' | ') + ' | G');
+  await page.getByRole('button', { name: 'Start session', exact: true }).tap();
+  await page.getByRole('navigation', { name: 'Session views' }).getByRole('button', { name: 'Song DNA' }).tap();
+  await page.getByRole('button', { name: 'See the whole song DNA' }).tap();
+  const canvas = page.locator('.session-dna .time-canvas');
+  await expect(canvas).toHaveAttribute('data-rendered', '240');
+  await expect(canvas).toHaveAttribute('data-first', '1');
+  await expect(canvas).toHaveAttribute('data-last', '240');
+  await expect(page.locator('.dna-compact-summary')).toContainText('All 240 chords');
 });

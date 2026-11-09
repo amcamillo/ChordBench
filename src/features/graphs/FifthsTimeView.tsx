@@ -38,6 +38,7 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
   const [yaw, setYaw] = useState(.15);
   const [tilt, setTilt] = useState(.4);
   const [zoom, setZoom] = useState(compact ? 1.55 : 1);
+  const detailZoom = useRef(zoom);
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [rendererStatus, setRendererStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
   const [rendererError, setRendererError] = useState('');
@@ -108,6 +109,12 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
 
   useEffect(() => { scene.current?.setVoiceLeading(voiceEnabled ? voiceCandidate : null); }, [voiceEnabled, voiceCandidate, overview, rendererStatus]);
 
+  function changeScope(whole: boolean) {
+    if (whole === overview) return;
+    if (whole) { detailZoom.current = zoom; setZoom(1.1); }
+    else setZoom(detailZoom.current);
+    setOverview(whole);
+  }
   function goTo(index: number) {
     const chord = chords[index];
     if (!chord || stale) return;
@@ -122,7 +129,7 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
   return <section className={`time-view ${compact ? 'time-view-compact' : ''}`} aria-label={compact ? '3D Song DNA' : undefined} aria-labelledby={compact ? undefined : 'time-view-heading'}>
     <div className="time-view-header"><div><span className="time-kicker">Your chart in harmony</span><h2 id="time-view-heading">Song DNA</h2><p>Follow the notes and connections woven through your chart. Note colours show a suggested piano register; neutral means the octave is unknown.</p></div><div className="time-view-progress"><strong>{chords.length ? focus + 1 : 0}</strong><span> / {chords.length} chords</span></div></div>
     {!chords.length ? <div className="time-empty"><p>Add chords to your chart to begin exploring their notes in the chromatic note circle.</p></div> : <>
-      <div className="dna-scope" role="group" aria-label="Song DNA scope"><button aria-pressed={!overview} onClick={() => setOverview(false)}>Chord detail</button><button aria-pressed={overview} onClick={() => setOverview(true)}>Whole song</button><span>{overview ? `All ${chords.length} written chords, first to last` : 'Nearby chords with individual note selection'}</span></div>
+      <div className="dna-scope" role="group" aria-label="Song DNA scope"><button aria-pressed={!overview} onClick={() => changeScope(false)}>Chord detail</button><button aria-pressed={overview} onClick={() => changeScope(true)}>Whole song</button><span>{overview ? `All ${chords.length} written chords, first to last` : 'Nearby chords with individual note selection'}</span></div>
       <RhythmPanel rhythm={rhythm} onChange={setRhythm} count={chords.length}/>
       {overview && rhythm.groove.steps.length > 0 && <p className="dna-overview-note">All chords shown; orange rhythm motifs are enlarged examples.</p>}
       <div className={`time-stage ${showRailLabels && !overview ? 'show-rail-labels' : ''}`}>
@@ -131,6 +138,7 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
           onPointerMove={event => { const d = drag.current; if (!d) return; const dx = event.clientX - d.x, dy = event.clientY - d.y; if (Math.abs(dx) + Math.abs(dy) > 7) d.moved = true; if (d.moved) { setYaw(Math.max(-.75, Math.min(.75, d.yaw + dx * .004))); setTilt(Math.max(-.65, Math.min(.75, d.tilt + dy * .004))); } }}
           onPointerUp={event => { const d = drag.current; drag.current = null; if (!d || d.moved) return; const occurrence = scene.current?.pickOccurrence(event.clientX, event.clientY); if (occurrence !== null && occurrence !== undefined) { goTo(occurrence); return; } const hit = scene.current?.pick(event.clientX, event.clientY); if (hit !== null && hit !== undefined) selectNote(hit); }}
           onPointerCancel={() => { drag.current = null; }}/>
+        {compact && <button className="dna-whole-toggle" type="button" aria-pressed={overview} onClick={() => changeScope(!overview)}>{overview ? 'Return to chord detail' : 'See the whole song DNA'}</button>}
         {!overview && <button className="rail-label-toggle" type="button" aria-pressed={showRailLabels} onClick={() => setShowRailLabels(!showRailLabels)}>{showRailLabels ? 'Hide note lines' : 'Label note lines'}</button>}
         {showRailLabels && !overview && <RailLabels canvas={canvas} scene={scene} current={current} next={next} notes={visualVoicings.find(item => item.id === current.id)?.notes} nextNotes={visualVoicings.find(item => item.id === next?.id)?.notes} playing={follow && playbackState === 'playing' && !reducedMotion} yaw={yaw} tilt={tilt} zoom={zoom} rendererStatus={rendererStatus}/>}
 
@@ -148,7 +156,7 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
       </div>
       {compact && <div className="dna-compact-summary">
         <div className="dna-compact-line"><strong>{current.symbol} <span aria-hidden="true">→</span> {next?.symbol ?? 'End'}</strong><span className="dna-voicing-label">Suggested piano</span><button onClick={() => compactOptions.current?.showModal()}>3D options</button></div>
-        <p>{voiceEnabled ? compactMovements ?? (next ? 'Both chords must resolve to compare voices.' : 'Last chord in chart.') : 'Voice-leading paths are off.'}</p>
+        <p>{overview ? `All ${chords.length} chords in written order. Tap the strand to explore.` : voiceEnabled ? compactMovements ?? (next ? 'Both chords must resolve to compare voices.' : 'Last chord in chart.') : 'Voice-leading paths are off.'}</p>
         <dialog ref={compactOptions} className="dna-compact-options" aria-labelledby="dna-compact-options-heading"><div className="dna-compact-options-header"><h2 id="dna-compact-options-heading">3D options</h2><button onClick={() => compactOptions.current?.close()}>Close</button></div>
           <DnaVoiceLeading candidates={candidates} choice={voiceChoice} onChoice={changeVoice} enabled={voiceEnabled} onToggle={setVoiceEnabled} disabled={stale} hasNext={!!next} guidedPlayback={guidedPlayback}/>
           <label className="time-follow"><input type="checkbox" checked={guidedPlayback} onChange={event => onGuidedPlayback?.(event.target.checked)}/> Use suggested voicings for piano playback</label>
@@ -162,7 +170,7 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
       {!compact && <label className="dna-timing-toggle"><input type="checkbox" checked={timingVisible} onChange={event => setTimingVisible(event.target.checked)}/> Timing guide & beat cues</label>}
       <p className="dna-time-hint">{overview ? "Time line: one mark per written chord; the moving line follows playback." : "Focused chord stays pinned; background chords travel along the time line. The bottom-right guide shows the selected visual meter and groove; its moving marker follows playback. Playback still assumes one 4/4 bar per chord. Shapes anticipate changes by 180 ms; audio stays on the beat."}</p>
       {!compact && <DnaVoiceLeading candidates={candidates} choice={voiceChoice} onChoice={changeVoice} enabled={voiceEnabled} onToggle={setVoiceEnabled} disabled={stale} hasNext={!!next}/>}
-      {overview && <ChordLens chord={current} disabled={stale} onDive={() => { setFollow(false); onSelect(current.id); setOverview(false); }}/>}
+      {overview && <ChordLens chord={current} disabled={stale} onDive={() => { setFollow(false); onSelect(current.id); changeScope(false); }}/>}
       <div className="time-controls"><div className="time-control-group"><button disabled={stale || focus === 0} onClick={() => goTo(focus - 1)}>Previous chord</button><button disabled={stale || focus >= chords.length - 1} onClick={() => goTo(focus + 1)}>Next chord</button><button onClick={() => { setYaw(.15); setTilt(.4); setZoom(1); }}>Reset view</button></div>
         {!compact && <label className="time-follow"><input type="checkbox" checked={follow} onChange={event => setFollow(event.target.checked)}/> Follow playback</label>}
         {reducedMotion && <span className="time-motion-note">Playback movement reduced by device setting.</span>}
