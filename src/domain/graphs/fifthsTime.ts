@@ -30,10 +30,10 @@ export function sharedPitchClasses(a: TimeChord, b: TimeChord): number[] {
 
 export function fifthIndex(pitch: number): number { return FIFTHS.findIndex(note => note.pitch === ((pitch % 12) + 12) % 12); }
 
-// The whole circle turns equally with depth: fifth positions remain 30° apart.
+// Pitch classes keep their circular positions at every chord depth.
 export function fifthsOrbitPoint(pitch: number, z: number, radius = 2.25) {
   const index = fifthIndex(pitch);
   if (index < 0) throw new Error('Invalid pitch class');
-  const angle = index * Math.PI / 6 + z * .65 + Math.PI / 2;
+  const angle = index * Math.PI / 6 + Math.PI / 2;
   return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, z };
 }

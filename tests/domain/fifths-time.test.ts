@@ -35,13 +35,18 @@ test('transposition re-resolves both notes and slash bass without changing occur
   assert.equal(result[0].id, chart.occurrences[0].id);
 });
 
-test('orbit points remain in 3D at constant radius and change around the axis with depth', () => {
+test('pitch-class positions remain aligned on straight rails through circular chord layers', () => {
   const near = fifthsOrbitPoint(0, 0);
   const far = fifthsOrbitPoint(0, -3);
   assert.equal(near.z, 0); assert.equal(far.z, -3);
   assert.ok(Math.abs(Math.hypot(near.x, near.y) - 2.25) < 1e-10);
   assert.ok(Math.abs(Math.hypot(far.x, far.y) - 2.25) < 1e-10);
-  assert.notEqual(far.x, near.x);
+  assert.equal(far.x, near.x); assert.equal(far.y, near.y);
+  for (const { pitch } of FIFTHS) {
+    const first = fifthsOrbitPoint(pitch, 3), last = fifthsOrbitPoint(pitch, -19);
+    assert.equal(first.x, last.x); assert.equal(first.y, last.y);
+    assert.ok(Math.abs(Math.hypot(first.x, first.y) - 2.25) < 1e-10);
+  }
   const fifth = fifthsOrbitPoint(7, 0);
   assert.ok(Math.abs((near.x * fifth.x + near.y * fifth.y) / (2.25 ** 2) - Math.cos(Math.PI / 6)) < 1e-10);
 });

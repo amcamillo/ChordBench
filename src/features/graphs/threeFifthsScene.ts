@@ -176,11 +176,11 @@ export class ThreeFifthsScene {
     const axisGlow = new THREE.Mesh(new THREE.CylinderGeometry(.10, .14, 21, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xb2a2ed, transparent: true, opacity: .08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     axisGlow.rotation.x = Math.PI / 2; axisGlow.position.z = -7; this.data.add(axisGlow);
 
-    // Stable pitch-class lanes, like a curved musical staff, continue through the visible window.
+    // Straight longitudinal rails hold pitch-class positions fixed across chord layers.
+    this.canvas.dataset.railGeometry = 'straight-pitch-class';
     for (const note of FIFTHS) {
-      const coords: THREE.Vector3[] = [];
-      for (let i = 0; i <= 160; i++) { const z = 3 - i * 22 / 160; const p = point(note.pitch, z - focus * SPACING); p.z = z; coords.push(p); }
-      this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords), new THREE.LineBasicMaterial({ color: 0x817cbd, transparent: true, opacity: .44, depthWrite: false })));
+      const coords = [point(note.pitch, 3), point(note.pitch, -19)];
+      this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords), new THREE.LineBasicMaterial({ color: 0x817cbd, transparent: true, opacity: .34, depthWrite: false })));
     }
     const start = Math.max(0, focus - 2);
     const visible = chords.slice(start, focus + LAYERS);
@@ -190,6 +190,13 @@ export class ThreeFifthsScene {
       const chordIndex = start + index;
       const z = -(chordIndex - focus) * SPACING;
       const backgroundPoint = (pitch: number) => { const p = point(pitch, -chordIndex * SPACING); p.z = z; return p; };
+      // A light circle marks each chord plane without forming a continuous spiral.
+      const circle = Array.from({ length: 64 }, (_, step) => {
+        const angle = step * Math.PI * 2 / 64;
+        return new THREE.Vector3(Math.cos(angle) * RADIUS, Math.sin(angle) * RADIUS, z);
+      });
+      this.data.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(circle), new THREE.LineBasicMaterial({ color: 0x817cbd, transparent: true, opacity: .16, depthWrite: false })));
+
       const ticks: THREE.Vector3[] = [];
       for (let beat = 0; beat < 4; beat++) {
         const depth = z - beat / 4 * SPACING, width = beat === 0 ? .24 : .1;
@@ -225,8 +232,7 @@ export class ThreeFifthsScene {
       });
       const next = visible[index + 1];
       if (next) for (const pitch of sharedPitchClasses(chord, next)) {
-        const coords: THREE.Vector3[] = [];
-        for (let j = 0; j <= 32; j++) { const p = point(pitch, -chordIndex * SPACING - j * SPACING / 32); p.z = z - j * SPACING / 32; coords.push(p); }
+        const coords = [backgroundPoint(pitch), point(pitch, z - SPACING)];
         this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords), new THREE.LineBasicMaterial({ color: 0x087d9f, transparent: true, opacity: .9, depthWrite: false })));
       }
     });

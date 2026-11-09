@@ -10,6 +10,7 @@ for (const [width, height] of [[320, 667], [375, 740], [820, 1180], [812, 375]])
     await expect(page.getByRole('button', { name: '3D strand' })).toHaveAttribute('aria-pressed', 'true');
     const canvas = page.locator('.session-dna .time-canvas');
     await expect(canvas).toHaveAttribute('data-renderer', 'webgl');
+    await expect(canvas).toHaveAttribute('data-rail-geometry', 'straight-pitch-class');
     await expect(canvas).toHaveAttribute('data-voice-paths', '3');
     await expect(page.locator('.dna-compact-summary')).toContainText('C → Am');
     await expect(page.locator('.dna-compact-summary')).toContainText('G4 → A4');
