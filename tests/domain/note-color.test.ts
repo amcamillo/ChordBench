@@ -8,7 +8,8 @@ const luminance = (hex: string) => {
 };
 const contrast = (a: string, b: string) => { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
 test('fixed absolute pitch scale has exact anchors, clamped ends and rejects unknowns', () => {
-  assert.equal(noteColor(36), '#b12c40'); assert.equal(noteColor(60), '#7a3f98'); assert.equal(noteColor(96), '#2454a6');
+  assert.equal(noteColor(36), '#842634'); assert.equal(noteColor(60), '#b12c40'); assert.equal(noteColor(64), '#7a3f98'); assert.equal(noteColor(67), '#2454a6'); assert.equal(noteColor(96), '#203c7c');
+  assert.equal(new Set([60, 64, 67].map(noteColor)).size, 3);
   assert.equal(noteColor(0), noteColor(36)); assert.equal(noteColor(127), noteColor(96));
   for (const value of [null, undefined, NaN, -1, 128, 60.5]) assert.equal(noteColor(value), UNKNOWN_NOTE_COLOR);
   assert.notEqual(noteColor(60), noteColor(72));

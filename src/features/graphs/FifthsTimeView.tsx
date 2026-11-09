@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DnaVoiceLeading } from './DnaVoiceLeading.tsx';
+import { RailLabels } from './RailLabels.tsx';
 import { buildTransition } from '../../domain/song/transitions.ts';
 import { TimingRuler } from './TimingRuler.tsx';
 import { ChordLens } from './ChordLens.tsx';
@@ -18,6 +19,7 @@ interface Props { tempo: number; chords: TimeChord[]; selectedId: string | null;
 
 export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackState, playbackDisabled, onTimingCues, onPlay, onPause, onStop, getPlaybackPosition, selectedPitch, stale, onSelect, onPitchSelect, compact = false, score, onScoreChoice, guidedPlayback = false, onGuidedPlayback }: Props) {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [showRailLabels, setShowRailLabels] = useState(false);
   const [timingVisible, setTimingVisible] = useState(() => {
     try { const saved = localStorage.getItem('chord-workbench-timing-visible'); return saved === null ? !compact : saved !== 'false'; } catch { return !compact; }
   });
@@ -123,12 +125,15 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
       <div className="dna-scope" role="group" aria-label="Song DNA scope"><button aria-pressed={!overview} onClick={() => setOverview(false)}>Chord detail</button><button aria-pressed={overview} onClick={() => setOverview(true)}>Whole song</button><span>{overview ? `All ${chords.length} written chords, first to last` : 'Nearby chords with individual note selection'}</span></div>
       <RhythmPanel rhythm={rhythm} onChange={setRhythm} count={chords.length}/>
       {overview && rhythm.groove.steps.length > 0 && <p className="dna-overview-note">All chords shown; orange rhythm motifs are enlarged examples.</p>}
-      <div className="time-stage">
+      <div className={`time-stage ${showRailLabels && !overview ? 'show-rail-labels' : ''}`}>
         <canvas ref={canvas} className="time-canvas" data-renderer={rendererStatus === 'ready' ? 'webgl' : rendererStatus} role="img" aria-label="3D orbital view of chord tones on a circle of fifths extending through the written chart; use the chord and note controls below for an equivalent description"
           onPointerDown={event => { if (stale) return; drag.current = { x: event.clientX, y: event.clientY, yaw, tilt, moved: false }; event.currentTarget.setPointerCapture(event.pointerId); }}
           onPointerMove={event => { const d = drag.current; if (!d) return; const dx = event.clientX - d.x, dy = event.clientY - d.y; if (Math.abs(dx) + Math.abs(dy) > 7) d.moved = true; if (d.moved) { setYaw(Math.max(-.75, Math.min(.75, d.yaw + dx * .004))); setTilt(Math.max(-.65, Math.min(.75, d.tilt + dy * .004))); } }}
           onPointerUp={event => { const d = drag.current; drag.current = null; if (!d || d.moved) return; const occurrence = scene.current?.pickOccurrence(event.clientX, event.clientY); if (occurrence !== null && occurrence !== undefined) { goTo(occurrence); return; } const hit = scene.current?.pick(event.clientX, event.clientY); if (hit !== null && hit !== undefined) selectNote(hit); }}
           onPointerCancel={() => { drag.current = null; }}/>
+        {!overview && <button className="rail-label-toggle" type="button" aria-pressed={showRailLabels} onClick={() => setShowRailLabels(!showRailLabels)}>{showRailLabels ? 'Hide note lines' : 'Label note lines'}</button>}
+        {showRailLabels && !overview && <RailLabels canvas={canvas} scene={scene} current={current} notes={visualVoicings.find(item => item.id === current.id)?.notes} yaw={yaw} tilt={tilt} zoom={zoom} rendererStatus={rendererStatus}/>}
+
         {rendererStatus === 'unavailable' && timingVisible && <TimingRuler focus={focus} symbol={current.symbol} running={follow && playbackState === 'playing' && !reducedMotion} getPosition={getPlaybackPosition}/>}
         <div className="time-stage-caption"><span>{playingId && follow ? 'Following playback' : 'Exploring chart'}</span><strong>{current.symbol}</strong><small>{current.section} · chord {focus + 1}</small></div>
         <details className="dna-stage-transport" open>

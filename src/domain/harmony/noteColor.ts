@@ -1,9 +1,11 @@
 /** Fixed absolute-pitch colours. A missing or invalid MIDI note stays neutral. */
 export const UNKNOWN_NOTE_COLOR = '#596579';
 export const NOTE_COLOR_ANCHORS = [
-  { midi: 36, color: '#b12c40' },
-  { midi: 60, color: '#7a3f98' },
-  { midi: 96, color: '#2454a6' },
+  { midi: 36, color: '#842634' },
+  { midi: 60, color: '#b12c40' },
+  { midi: 64, color: '#7a3f98' },
+  { midi: 67, color: '#2454a6' },
+  { midi: 96, color: '#203c7c' },
 ] as const;
 
 type Triple = [number, number, number];
@@ -26,11 +28,12 @@ function fromLab([L, a, b]: Triple): string {
 const LAB = NOTE_COLOR_ANCHORS.map(anchor => toLab(anchor.color));
 export function noteColor(midi: number | null | undefined): string {
   if (typeof midi !== 'number' || !Number.isInteger(midi) || midi < 0 || midi > 127) return UNKNOWN_NOTE_COLOR;
-  if (midi <= 36) return NOTE_COLOR_ANCHORS[0].color;
-  if (midi === 60) return NOTE_COLOR_ANCHORS[1].color;
-  if (midi >= 96) return NOTE_COLOR_ANCHORS[2].color;
-  const segment = midi < 60 ? 0 : 1;
+  if (midi <= NOTE_COLOR_ANCHORS[0].midi) return NOTE_COLOR_ANCHORS[0].color;
+  const last = NOTE_COLOR_ANCHORS.length - 1;
+  if (midi >= NOTE_COLOR_ANCHORS[last].midi) return NOTE_COLOR_ANCHORS[last].color;
+  const segment = NOTE_COLOR_ANCHORS.findIndex((anchor, i) => i < last && midi >= anchor.midi && midi < NOTE_COLOR_ANCHORS[i + 1].midi);
   const start = NOTE_COLOR_ANCHORS[segment].midi, end = NOTE_COLOR_ANCHORS[segment + 1].midi;
+  if (midi === start) return NOTE_COLOR_ANCHORS[segment].color;
   const t = (midi - start) / (end - start);
   return fromLab(LAB[segment].map((value, i) => value + (LAB[segment + 1][i] - value) * t) as Triple);
 }

@@ -3,7 +3,6 @@ import { fifthsOrbitPoint, type TimeChord, type TimeNote } from '../../domain/gr
 import { pairMorphNotes } from '../../domain/graphs/chordMorph.ts';
 import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
 import type { PianoNote } from '../../domain/instruments/voicings.ts';
-import { spelledMidiName } from '../../domain/instruments/voicings.ts';
 
 const point = (note?: TimeNote) => { const p = note ? fifthsOrbitPoint(note.pitch, 0) : { x: 0, y: 0, z: 0 }; return new THREE.Vector3(p.x, p.y, p.z); };
 // Fixed sampling lets triads and extended chords interpolate without changing buffers.
@@ -15,7 +14,7 @@ function outline(notes: TimeNote[]) {
     return vertices[index].clone().lerp(vertices[(index + 1) % vertices.length], t % 1);
   });
 }
-export function buildFocusedChord(parent: THREE.Group, chord: TimeChord, next: TimeChord | undefined, selectedPitch: number | null, labelSprite: (text: string) => THREE.Sprite, fromVoicing?: PianoNote[], toVoicing?: PianoNote[]) {
+export function buildFocusedChord(parent: THREE.Group, chord: TimeChord, next: TimeChord | undefined, selectedPitch: number | null, _labelSprite: (text: string) => THREE.Sprite, fromVoicing?: PianoNote[], toVoicing?: PianoNote[]) {
   const target = next && !next.unresolved && !chord.unresolved ? next : chord;
   const sourceOutline = outline(chord.notes), targetOutline = outline(target.notes);
   const geometry = new THREE.BufferGeometry().setFromPoints(sourceOutline);
@@ -30,12 +29,7 @@ export function buildFocusedChord(parent: THREE.Group, chord: TimeChord, next: T
     mesh.userData.pitch = pair.from?.pitch; parent.add(mesh);
     const rootRing = new THREE.Mesh(new THREE.TorusGeometry(.31, .025, 6, 32), new THREE.MeshBasicMaterial({ color: 0x18263a, side: THREE.DoubleSide, fog: false, toneMapped: false }));
     rootRing.position.z = .05; mesh.add(rootRing);
-    const labels = [pair.from, pair.to].map((note, index) => {
-      if (!note) return null;
-      const midi = index === 0 ? fromMidi : toMidi;
-      const label = labelSprite(`${midi === null ? note.spelling : spelledMidiName(midi, note.spelling)} ${note.root ? 'root' : note.interval}`); label.position.copy(point(note).multiplyScalar(1.25)); parent.add(label); return label;
-    });
-    return { pair, mesh, labels, rootRing, start: point(pair.from), end: point(pair.to), fromColor, toColor };
+    return { pair, mesh, rootRing, start: point(pair.from), end: point(pair.to), fromColor, toColor };
   });
   const update = (amount: number) => {
     const buffer = geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -48,8 +42,6 @@ export function buildFocusedChord(parent: THREE.Group, chord: TimeChord, next: T
       node.rootRing.visible = !!(amount < .5 ? node.pair.from?.root : node.pair.to?.root);
       node.mesh.material.opacity = !node.pair.from ? amount : !node.pair.to ? 1 - amount : 1;
       node.mesh.visible = node.mesh.material.opacity > .001;
-      if (node.labels[0]) node.labels[0].material.opacity = 1 - amount;
-      if (node.labels[1]) node.labels[1].material.opacity = amount;
     }
   };
   update(0);

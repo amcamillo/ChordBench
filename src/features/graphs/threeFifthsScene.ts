@@ -7,7 +7,6 @@ import { morphAmount } from '../../domain/graphs/chordMorph.ts';
 import { buildFocusedChord } from './focusedChord.ts';
 import { buildTimingTrack } from './dnaTimingTrack.ts';
 import type { TransitionCandidate } from '../../domain/song/transitions.ts';
-import { spelledMidiName } from '../../domain/instruments/voicings.ts';
 import { buildSongOverview } from './songOverview.ts';
 import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
 import type { PianoNote } from '../../domain/instruments/voicings.ts';
@@ -133,6 +132,21 @@ export class ThreeFifthsScene {
     this.canvas.dataset.focusX = center.x.toFixed(4);
     this.canvas.dataset.focusY = center.y.toFixed(4);
     this.updateTimingTrack();
+  }
+
+  /** Project the fixed pitch-class rails at the focused chord plane. */
+  railPositions() {
+    this.camera.updateMatrixWorld();
+    return FIFTHS.map(note => {
+      // Prefer the rightmost visible part of a rail, keeping leaders away from the chord.
+      const candidates = Array.from({ length: 37 }, (_, i) => point(note.pitch, -i * .5).project(this.camera))
+        .map(p => ({ pitch: note.pitch, x: (p.x + 1) / 2, y: (1 - p.y) / 2, z: p.z }))
+        .filter(p => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1 && p.z >= -1 && p.z <= 1);
+      return candidates.sort((a, b) => b.x - a.x)[0] ?? (() => {
+        const p = point(note.pitch, 0).project(this.camera);
+        return { pitch: note.pitch, x: (p.x + 1) / 2, y: (1 - p.y) / 2 };
+      })();
+    });
   }
 
   setData(chords: TimeChord[], focus: number, selectedPitch: number | null, overview = false, rhythm: VisualRhythm = { groove: GROOVES[0], meter: '4/4' }, timingVisible = true, voicings: readonly { id: string; notes: PianoNote[] }[] = []) {
@@ -267,7 +281,7 @@ export class ThreeFifthsScene {
       const p = overviewPoint(fifthIndex(pitch), this.focus + (next ? 1 : 0), this.count);
       return new THREE.Vector3(p.x, p.y, p.z);
     };
-    for (const [index, voice] of candidate.movements.entries()) {
+    for (const voice of candidate.movements) {
       const a = voice.from ? voicePoint(voice.from.midi % 12, false) : null;
       const b = voice.to ? voicePoint(voice.to.midi % 12, true) : null;
       if (a && b) {
@@ -285,11 +299,7 @@ export class ThreeFifthsScene {
           arrow.renderOrder = 25; this.voiceLayer.add(arrow);
         }
       }
-      const text = `${voice.from ? spelledMidiName(voice.from.midi, voice.from.spelling) : '+'} > ${voice.to ? spelledMidiName(voice.to.midi, voice.to.spelling) : '-'}`;
-      const label = labelSprite(text, 30);
-      label.scale.set(2.5, .625, 1);
-      label.position.copy((a ?? b)!.clone().multiplyScalar(1.3)); label.position.z -= index * .07;
-      label.material.depthTest = false; label.renderOrder = 26; this.voiceLayer.add(label);
+
     }
     this.render();
   }
