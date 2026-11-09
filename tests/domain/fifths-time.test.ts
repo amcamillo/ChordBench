@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FIFTHS, buildFifthsTime, fifthIndex, fifthsOrbitPoint, sharedPitchClasses } from '../../src/domain/graphs/fifthsTime.ts';
+import { FIFTHS, buildFifthsTime, fifthIndex, noteRailPoint, sharedPitchClasses } from '../../src/domain/graphs/fifthsTime.ts';
 import { parseChart } from '../../src/domain/chart/parser.ts';
 import { tonalTheory } from '../../src/infrastructure/theory/tonal.ts';
 import { cameraPosition } from '../../src/domain/graphs/fifthsCamera.ts';
@@ -36,18 +36,24 @@ test('transposition re-resolves both notes and slash bass without changing occur
 });
 
 test('pitch-class positions remain aligned on straight rails through circular chord layers', () => {
-  const near = fifthsOrbitPoint(0, 0);
-  const far = fifthsOrbitPoint(0, -3);
+  const near = noteRailPoint(0, 0);
+  const far = noteRailPoint(0, -3);
   assert.equal(near.z, 0); assert.equal(far.z, -3);
   assert.ok(Math.abs(Math.hypot(near.x, near.y) - 2.25) < 1e-10);
   assert.ok(Math.abs(Math.hypot(far.x, far.y) - 2.25) < 1e-10);
   assert.equal(far.x, near.x); assert.equal(far.y, near.y);
   for (const { pitch } of FIFTHS) {
-    const first = fifthsOrbitPoint(pitch, 3), last = fifthsOrbitPoint(pitch, -19);
+    const first = noteRailPoint(pitch, 3), last = noteRailPoint(pitch, -19);
     assert.equal(first.x, last.x); assert.equal(first.y, last.y);
     assert.ok(Math.abs(Math.hypot(first.x, first.y) - 2.25) < 1e-10);
   }
-  const fifth = fifthsOrbitPoint(7, 0);
+  const fifth = noteRailPoint(1, 0);
+  assert.ok(Math.abs(near.x) < 1e-10); assert.ok(near.y > 0);
+  assert.ok(fifth.x > 0);
+  for (let pitch = 0; pitch < 12; pitch++) {
+    const a = noteRailPoint(pitch, 0), b = noteRailPoint((pitch + 1) % 12, 0);
+    assert.ok(Math.abs((a.x * b.x + a.y * b.y) / (2.25 ** 2) - Math.cos(Math.PI / 6)) < 1e-10);
+  }
   assert.ok(Math.abs((near.x * fifth.x + near.y * fifth.y) / (2.25 ** 2) - Math.cos(Math.PI / 6)) < 1e-10);
 });
 

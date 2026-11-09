@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FIFTHS, fifthIndex, fifthsOrbitPoint, sharedPitchClasses } from '../../domain/graphs/fifthsTime.ts';
+import { CHROMATIC, noteRailPoint, sharedPitchClasses } from '../../domain/graphs/fifthsTime.ts';
 import type { TimeChord } from '../../domain/graphs/fifthsTime.ts';
 import { cameraPosition } from '../../domain/graphs/fifthsCamera.ts';
 import { GROOVES, meterFrame, overviewPoint, overviewX, rhythmEvents, type VisualRhythm } from '../../domain/graphs/rhythm.ts';
@@ -13,7 +13,7 @@ import type { PianoNote } from '../../domain/instruments/voicings.ts';
 
 const RADIUS = 2.25, SPACING = 1.45, LAYERS = 10;
 const point = (pitch: number, z: number, radius = RADIUS) => {
-  const result = fifthsOrbitPoint(pitch, z, radius);
+  const result = noteRailPoint(pitch, z, radius);
   return new THREE.Vector3(result.x, result.y, result.z);
 };
 
@@ -137,16 +137,13 @@ export class ThreeFifthsScene {
   /** Project the fixed pitch-class rails at the focused chord plane. */
   railPositions() {
     this.camera.updateMatrixWorld();
-    return FIFTHS.map(note => {
-      // Prefer the rightmost visible part of a rail, keeping leaders away from the chord.
-      const candidates = Array.from({ length: 37 }, (_, i) => point(note.pitch, -i * .5).project(this.camera))
-        .map(p => ({ pitch: note.pitch, x: (p.x + 1) / 2, y: (1 - p.y) / 2, z: p.z }))
-        .filter(p => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1 && p.z >= -1 && p.z <= 1);
-      return candidates.sort((a, b) => b.x - a.x)[0] ?? (() => {
-        const p = point(note.pitch, 0).project(this.camera);
-        return { pitch: note.pitch, x: (p.x + 1) / 2, y: (1 - p.y) / 2 };
-      })();
-    });
+    return CHROMATIC.map(note => ({
+      pitch: note.pitch,
+      candidates: Array.from({ length: 49 }, (_, i) => point(note.pitch, 2 - i * .35).project(this.camera))
+        .filter(p => p.z >= -1 && p.z <= 1)
+        .map(p => ({ x: (p.x + 1) / 2, y: (1 - p.y) / 2 }))
+        .filter(p => p.x >= .03 && p.x <= .97 && p.y >= .03 && p.y <= .97),
+    }));
   }
 
   setData(chords: TimeChord[], focus: number, selectedPitch: number | null, overview = false, rhythm: VisualRhythm = { groove: GROOVES[0], meter: '4/4' }, timingVisible = true, voicings: readonly { id: string; notes: PianoNote[] }[] = []) {
@@ -192,7 +189,7 @@ export class ThreeFifthsScene {
 
     // Straight longitudinal rails hold pitch-class positions fixed across chord layers.
     this.canvas.dataset.railGeometry = 'straight-pitch-class';
-    for (const note of FIFTHS) {
+    for (const note of CHROMATIC) {
       const coords = [point(note.pitch, 3), point(note.pitch, -19)];
       this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords), new THREE.LineBasicMaterial({ color: 0x817cbd, transparent: true, opacity: .34, depthWrite: false })));
     }
@@ -278,7 +275,7 @@ export class ThreeFifthsScene {
     if (!candidate) { this.render(); return; }
     const voicePoint = (pitch: number, next: boolean) => {
       if (!this.overview) return point(pitch, next ? -SPACING : 0);
-      const p = overviewPoint(fifthIndex(pitch), this.focus + (next ? 1 : 0), this.count);
+      const p = overviewPoint(pitch, this.focus + (next ? 1 : 0), this.count);
       return new THREE.Vector3(p.x, p.y, p.z);
     };
     for (const voice of candidate.movements) {

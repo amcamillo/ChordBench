@@ -1,16 +1,45 @@
 ﻿import { useEffect, useState, type RefObject } from 'react';
-import { FIFTHS } from '../../domain/graphs/fifthsTime.ts';
+import { CHROMATIC } from '../../domain/graphs/fifthsTime.ts';
 import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
-import { spelledMidiName, type PianoNote } from '../../domain/instruments/voicings.ts';
-import type { TimeChord } from '../../domain/graphs/fifthsTime.ts';
+import type { PianoNote } from '../../domain/instruments/voicings.ts';
 import type { ThreeFifthsScene } from './threeFifthsScene.ts';
 
+type Point = { x: number; y: number };
+type Rail = { pitch: number; candidates: Point[] };
 interface Props {
   canvas: RefObject<HTMLCanvasElement | null>; scene: RefObject<ThreeFifthsScene | null>;
-  current: TimeChord; notes: PianoNote[] | undefined; yaw: number; tilt: number; zoom: number; rendererStatus: string;
+  notes: PianoNote[] | undefined; yaw: number; tilt: number; zoom: number; rendererStatus: string;
 }
-export function RailLabels({ canvas, scene, current, notes, yaw, tilt, zoom, rendererStatus }: Props) {
-  const [layout, setLayout] = useState<{ width: number; height: number; graphWidth: number; columns: number; points: { pitch: number; x: number; y: number }[] } | null>(null);
+interface LabelPosition { pitch: number; x: number; y: number }
+
+// Choose actual visible points along each rail. Avoid collisions without pulling a
+// label away from the rail or adding long leaders across the chord visualization.
+function placeLabels(rails: Rail[], width: number, height: number): LabelPosition[] {
+  const positions: LabelPosition[] = [];
+  const labelWidth = 58, labelHeight = 23;
+  for (const rail of rails) {
+    const candidates = rail.candidates.map(p => ({ x: p.x * width, y: p.y * height }))
+      .filter(p => p.x >= labelWidth / 2 && p.x <= width - labelWidth / 2 && p.y >= labelHeight && p.y <= height - labelHeight);
+    if (!candidates.length) continue;
+    let best = candidates[0], bestCost = Infinity;
+    for (const point of candidates) {
+      let cost = Math.abs(point.x - width * .54) * .015 + Math.abs(point.y - height * .54) * .005;
+      // Keep the toggle and chord caption readable.
+      if (point.y < 55 && (point.x > width - 155 || point.x < 100)) cost += 2000;
+      for (const other of positions) {
+        const overlapX = Math.max(0, labelWidth - Math.abs(point.x - other.x));
+        const overlapY = Math.max(0, labelHeight - Math.abs(point.y - other.y));
+        cost += overlapX * overlapY * 100;
+      }
+      if (cost < bestCost) { best = point; bestCost = cost; }
+    }
+    positions.push({ pitch: rail.pitch, x: best.x, y: best.y });
+  }
+  return positions;
+}
+
+export function RailLabels({ canvas, scene, notes, yaw, tilt, zoom, rendererStatus }: Props) {
+  const [positions, setPositions] = useState<LabelPosition[]>([]);
   useEffect(() => {
     const element = canvas.current, stage = element?.parentElement;
     if (!element || !stage) return;
@@ -18,40 +47,20 @@ export function RailLabels({ canvas, scene, current, notes, yaw, tilt, zoom, ren
     const measure = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const width = stage.clientWidth, height = stage.clientHeight;
-        if (!width || !height) return;
-        setLayout({ width, height, graphWidth: element.clientWidth, columns: window.matchMedia('(max-height: 500px)').matches ? 2 : 1, points: scene.current?.railPositions() ?? [] });
+        if (!element.clientWidth || !element.clientHeight) return;
+        setPositions(placeLabels(scene.current?.railPositions() ?? [], element.clientWidth, element.clientHeight));
       });
     };
     const observer = new ResizeObserver(measure); observer.observe(stage); observer.observe(element); measure();
     return () => { cancelAnimationFrame(frame); observer.disconnect(); };
   }, [canvas, scene, yaw, tilt, zoom, rendererStatus]);
-  const points = layout?.points.length ? layout.points : FIFTHS.map((note, i) => ({ pitch: note.pitch, x: 1, y: (i + .5) / 12 }));
-  const sorted = [...points].sort((a, b) => a.y - b.y || a.x - b.x || a.pitch - b.pitch);
-  const rows = layout?.columns === 2 ? 6 : 12;
-  return <>
-    {layout && <svg className="rail-leaders" viewBox={`0 0 ${layout.width} ${layout.height}`} aria-hidden="true">
-      {sorted.map((point, index) => {
-        const column = Math.floor(index / rows), row = index % rows;
-        const panelWidth = layout.width - layout.graphWidth;
-        const x1 = Math.max(0, Math.min(layout.graphWidth, point.x * layout.graphWidth));
-        const y1 = Math.max(0, Math.min(layout.height, point.y * layout.height));
-        const x2 = layout.graphWidth + column * panelWidth / layout.columns + 2;
-        const y2 = (row + .5) * layout.height / rows;
-        return <line key={point.pitch} data-pitch={point.pitch} x1={x1} y1={y1} x2={x2} y2={y2}/>;
-      })}
-    </svg>}
-    <div className="rail-labels" role="list" aria-label="Pitch-class rail labels">
-      {sorted.map(point => {
-        const pitch = FIFTHS.find(item => item.pitch === point.pitch)!;
-        const chordNote = current.notes.find(note => note.pitch === point.pitch);
-        const midi = unambiguousPitch(notes, point.pitch);
-        const spelling = chordNote?.spelling ?? notes?.find(note => note.midi === midi)?.spelling;
-        const name = midi !== null && spelling ? spelledMidiName(midi, spelling) : spelling ?? pitch.label;
-        return <div role="listitem" className="rail-label" key={point.pitch} data-pitch={point.pitch} title={midi === null ? `${pitch.label}, pitch class; octave not uniquely specified` : `${name}, suggested piano pitch`}>
-          <i aria-hidden="true" style={{ background: noteColor(midi) }}/><span>{name}</span>
-        </div>;
-      })}
-    </div>
-  </>;
+  return <div className="rail-labels" role="list" aria-label="Pitch-class rail labels">
+    {positions.map(position => {
+      const pitch = CHROMATIC[position.pitch];
+      const midi = unambiguousPitch(notes, position.pitch);
+      return <div role="listitem" className="rail-label" key={position.pitch} data-pitch={position.pitch} title={`${pitch.label} pitch class; octaves share this rail`} style={{ left: position.x, top: position.y }}>
+        <i aria-hidden="true" style={{ background: noteColor(midi) }}/><span>{pitch.label}</span>
+      </div>;
+    })}
+  </div>;
 }

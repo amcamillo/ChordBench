@@ -10,6 +10,9 @@ export const FIFTHS = [
   { pitch: 3, label: 'E♭/D♯' }, { pitch: 10, label: 'B♭/A♯' }, { pitch: 5, label: 'F' },
 ] as const;
 
+// Chromatic order, clockwise from C at the top of a chord layer.
+export const CHROMATIC = ['C', 'C\u266f/D\u266d', 'D', 'D\u266f/E\u266d', 'E', 'F', 'F\u266f/G\u266d', 'G', 'G\u266f/A\u266d', 'A', 'A\u266f/B\u266d', 'B'].map((label, pitch) => ({ pitch, label }));
+
 export interface TimeNote { pitch: number; spelling: string; interval: string; root: boolean }
 export interface TimeChord { id: string; order: number; section: string; symbol: string; notes: TimeNote[]; bass: string | null; unresolved: boolean; definition?: ChordDefinition }
 
@@ -31,9 +34,9 @@ export function sharedPitchClasses(a: TimeChord, b: TimeChord): number[] {
 export function fifthIndex(pitch: number): number { return FIFTHS.findIndex(note => note.pitch === ((pitch % 12) + 12) % 12); }
 
 // Pitch classes keep their circular positions at every chord depth.
-export function fifthsOrbitPoint(pitch: number, z: number, radius = 2.25) {
-  const index = fifthIndex(pitch);
-  if (index < 0) throw new Error('Invalid pitch class');
-  const angle = index * Math.PI / 6 + Math.PI / 2;
+export function noteRailPoint(pitch: number, z: number, radius = 2.25) {
+  if (!Number.isInteger(pitch)) throw new Error('Invalid pitch class');
+  const index = ((pitch % 12) + 12) % 12;
+  const angle = Math.PI / 2 - index * Math.PI / 6;
   return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, z };
 }

@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { fifthsOrbitPoint, type TimeChord, type TimeNote } from '../../domain/graphs/fifthsTime.ts';
+import { noteRailPoint, type TimeChord, type TimeNote } from '../../domain/graphs/fifthsTime.ts';
 import { pairMorphNotes } from '../../domain/graphs/chordMorph.ts';
 import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
 import type { PianoNote } from '../../domain/instruments/voicings.ts';
 
-const point = (note?: TimeNote) => { const p = note ? fifthsOrbitPoint(note.pitch, 0) : { x: 0, y: 0, z: 0 }; return new THREE.Vector3(p.x, p.y, p.z); };
+const point = (note?: TimeNote) => { const p = note ? noteRailPoint(note.pitch, 0) : { x: 0, y: 0, z: 0 }; return new THREE.Vector3(p.x, p.y, p.z); };
 // Fixed sampling lets triads and extended chords interpolate without changing buffers.
 function outline(notes: TimeNote[]) {
   const vertices = notes.map(note => point(note));

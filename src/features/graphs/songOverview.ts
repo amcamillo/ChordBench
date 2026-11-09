@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { fifthIndex, sharedPitchClasses, type TimeChord } from '../../domain/graphs/fifthsTime.ts';
+import { sharedPitchClasses, type TimeChord } from '../../domain/graphs/fifthsTime.ts';
 import { meterFrame, overviewPoint, overviewX, rhythmEvents, type VisualRhythm } from '../../domain/graphs/rhythm.ts';
 import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
 import type { PianoNote } from '../../domain/instruments/voicings.ts';
@@ -12,7 +12,7 @@ export function buildSongOverview(parent: THREE.Group, chords: TimeChord[], rhyt
   const roots: number[] = [], tones: number[] = [], outlines: number[] = [], links: number[] = [], bars: number[] = [], groove: number[] = [];
   const rootColors: number[] = [], toneColors: number[] = [];
   const byId = new Map(voicings.map(item => [item.id, item.notes]));
-  const vector = (pitch: number, position: number) => { const p = overviewPoint(fifthIndex(pitch), position, chords.length); return [p.x, p.y, p.z]; };
+  const vector = (pitch: number, position: number) => { const p = overviewPoint(pitch, position, chords.length); return [p.x, p.y, p.z]; };
   const events = rhythmEvents(rhythm);
   chords.forEach((chord, index) => {
     chord.notes.forEach((note, n) => {

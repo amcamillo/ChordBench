@@ -1,9 +1,9 @@
-import { fifthIndex, type TimeChord } from '../../domain/graphs/fifthsTime.ts';
+import { type TimeChord } from '../../domain/graphs/fifthsTime.ts';
 
 const roles: Record<string, string> = { '1P': 'Root', '3m': 'Minor third', '3M': 'Major third', '4P': 'Perfect fourth', '5P': 'Perfect fifth', '5d': 'Diminished fifth', '5A': 'Augmented fifth', '6M': 'Major sixth', '7m': 'Minor seventh', '7M': 'Major seventh', '9M': 'Major ninth', '9m': 'Minor ninth', '11P': 'Perfect eleventh', '13M': 'Major thirteenth' };
 export function ChordLens({ chord, disabled, onDive }: { chord: TimeChord; disabled: boolean; onDive(): void }) {
   const points = chord.notes.map(note => {
-    const angle = fifthIndex(note.pitch) * Math.PI / 6 - Math.PI / 2;
+    const angle = note.pitch * Math.PI / 6 - Math.PI / 2;
     return { ...note, x: 130 + Math.cos(angle) * 72, y: 110 + Math.sin(angle) * 72, labelX: 130 + Math.cos(angle) * 94, labelY: 110 + Math.sin(angle) * 94 };
   });
   return <section className="dna-chord-lens" aria-label="Focused chord diagram">
@@ -13,7 +13,7 @@ export function ChordLens({ chord, disabled, onDive }: { chord: TimeChord; disab
       {points.map((p, i) => <g key={i}><circle cx={p.x} cy={p.y} r={p.root ? 7 : 5} fill="#596579" stroke={p.root ? '#19243a' : 'none'} strokeWidth={p.root ? 3 : 0}/><text x={p.labelX} y={p.labelY} textAnchor="middle" dominantBaseline="middle" fill="#252b4b" fontSize="14">{p.spelling}</text></g>)}
       <text x="130" y="114" textAnchor="middle" fill="#252b4b" fontSize="21">{chord.symbol}</text>
     </svg>
-    <div><h3>{chord.symbol} · chord {chord.order + 1}</h3><p>{chord.unresolved ? 'Unresolved symbol: no chord tones are invented.' : 'Each dot is a chord tone. The polygon joins those tones around the circle of fifths; its edges are not melody or voice movement.'}</p>
+    <div><h3>{chord.symbol} · chord {chord.order + 1}</h3><p>{chord.unresolved ? 'Unresolved symbol: no chord tones are invented.' : 'Each dot is a chord tone. The polygon joins those tones around the chromatic note circle; its edges are not melody or voice movement.'}</p>
       <button disabled={disabled} onClick={onDive}>Dive into chord</button>
       <details><summary>Notes &amp; intervals</summary><ul>{chord.notes.map((note, i) => <li key={i}><strong>{note.spelling}</strong> — {roles[note.interval] ?? `Interval ${note.interval}`} ({note.interval})</li>)}</ul>{chord.bass && <p>Requested bass: {chord.bass}. The diagram shows pitch classes, not a particular voicing.</p>}</details>
     </div>

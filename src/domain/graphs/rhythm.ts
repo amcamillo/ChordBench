@@ -34,6 +34,6 @@ export function overviewX(position: number, count: number): number {
   return count <= 1 ? 0 : -16 + Math.max(0, Math.min(count - 1, position)) / (count - 1) * 32;
 }
 export function overviewPoint(pitchIndex: number, position: number, count: number, radius = 2) {
-  const angle = pitchIndex * Math.PI / 6 + position / Math.max(1, count - 1) * Math.PI * 8;
+  const angle = pitchIndex * Math.PI / 6;
   return { x: overviewX(position, count), y: Math.cos(angle) * radius, z: Math.sin(angle) * radius };
 }
