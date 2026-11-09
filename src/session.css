@@ -30,13 +30,31 @@
 .session-piano .audio-status { margin: 6px 0 0; font-size: 12px; }
 .session-piano .guitar-layout { grid-template-columns: 120px minmax(0, 1fr); }
 .session-piano .guitar-diagram { max-height: 150px; }
-.session-dna { height: 100%; }
-.session-dna .time-view { height: 100%; padding: 0; }
-.session-dna .time-view > :not(.time-stage):not(.time-empty) { display: none; }
+.session-dna { height: 100%; display: flex; flex-direction: column; }
+.session-dna-mode { display: flex; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.session-dna-mode button { flex: 1; }
+.session-dna-mode button[aria-pressed=true] { background: var(--accent-soft); color: var(--navy); border-color: var(--accent); }
+.session-dna-body, .session-dna-spatial, .session-dna-score { min-height: 0; height: 100%; }
+.session-dna-body { flex: 1; }
+.session-dna .time-view { height: 100%; padding: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.session-dna .time-view > :not(.time-stage):not(.time-empty):not(.dna-compact-summary) { display: none; }
 .session-dna .time-stage { height: 100%; border: 0; border-radius: 0; }
 .session-dna .time-canvas { height: 100%; min-height: 0; }
 .session-dna .dna-stage-transport { display: none; }
 .session-dna .dna-timing-ruler { position: absolute; inset: auto 8px 8px auto; width: 150px; }
+.session-dna .time-stage-caption { top: 10px; left: 12px; }
+.session-dna .time-stage-caption strong { font-size: 26px; }
+.dna-compact-summary { padding: 8px 12px; background: #fff; color: var(--ink); border-top: 1px solid var(--line); }
+.dna-compact-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dna-compact-line strong { min-width: 0; font-size: 18px; overflow-wrap: anywhere; }
+.dna-compact-summary > p { margin: 4px 0 0; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.dna-compact-options { width: min(620px, calc(100% - 24px)); max-height: calc(100dvh - 32px); border: 1px solid var(--line); border-radius: 12px; padding: 16px; color: var(--ink); background: #fff; overflow: auto; }
+.dna-compact-options::backdrop { background: #19223c88; }
+.dna-compact-options-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dna-compact-options .time-follow { color: var(--ink); }
+.dna-compact-options .time-sliders { grid-template-columns: 1fr; margin: 8px 0; gap: 4px; }
+.dna-compact-options .time-sliders label { color: var(--ink); }
+.dna-compact-options > p { margin-top: 12px; line-height: 1.5; }
 .session-shell :is(button, a, input, select, [tabindex]) { scroll-margin: 4px; }
 @media (max-width: 479px) {
   .session-chord > div { display: block; }
@@ -57,4 +75,7 @@
   .session-piano .instrument-options { grid-column: 1 / -1; }
   .session-piano .instrument-actions { margin: 0; }
   .session-piano .note-buttons, .session-piano .audio-status { margin: 0; }
+  .session-dna .time-view { grid-template-columns: minmax(0, 1fr) 190px; grid-template-rows: minmax(0, 1fr); }
+  .dna-compact-summary { border-top: 0; border-left: 1px solid var(--line); overflow: auto; }
+  .dna-compact-line { flex-wrap: wrap; }
 }

@@ -78,7 +78,7 @@ test('score preview and guided playback sound the exact displayed voicings', asy
   await page.goto('/');
   await page.getByLabel('Chords and lyrics').fill('C | Am | F');
   await expect(page.getByRole('button', { name: 'Am, occurrence 2', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Song DNA', exact: true }).click();
+  await page.getByRole('button', { name: 'Score view', exact: true }).click();
   await page.getByRole('button', { name: 'Hear change', exact: true }).click();
   await expect(page.locator('.score-status')).toContainText('Current voicing, then next voicing');
   const pitches = await page.evaluate(() => (window as unknown as { scoreFrequencies: number[] }).scoreFrequencies.map(hz => Math.round(69 + 12 * Math.log2(hz / 440))));
@@ -109,6 +109,7 @@ test('phone score stays compact and explains notation in an accessible dialog', 
   await page.goto('/');
   await page.getByRole('button', { name: 'Start session', exact: true }).click();
   await page.getByRole('navigation', { name: 'Session views' }).getByRole('button', { name: 'Song DNA', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Song DNA display' }).getByRole('button', { name: 'Score', exact: true }).click();
   await expect(page.locator('.score-movement')).toContainText('Keep C4, E4');
   const box = (await page.getByRole('button', { name: 'Hear change', exact: true }).boundingBox())!;
   expect(box.y + box.height).toBeLessThan(620);
@@ -148,14 +149,14 @@ test('session instrument and header follow playback together; browsing stops pla
   await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 });
 
-test('fresh desktop opens the new score and retains the spatial view as an option', async ({ browser }) => {
+test('fresh desktop opens the spatial view and retains the score as an option', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Song DNA', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('region', { name: 'Song DNA score' })).toBeVisible();
-  await page.getByRole('button', { name: 'Spatial DNA', exact: true }).click();
   await expect(page.locator('.time-canvas')).toBeVisible();
+  await page.getByRole('button', { name: 'Score view', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Song DNA score' })).toBeVisible();
   await context.close();
 });
 
@@ -177,7 +178,7 @@ test('changing a voicing during playback keeps the playing chord in focus', asyn
   await page.getByLabel('Chords and lyrics').fill('C | Am | F');
   await expect(page.getByRole('button', { name: 'Am, occurrence 2', exact: true })).toBeVisible();
   await page.getByLabel('Chart tempo in beats per minute').fill('120');
-  await page.getByRole('button', { name: 'Song DNA', exact: true }).click();
+  await page.getByRole('button', { name: 'Score view', exact: true }).click();
   await page.getByRole('button', { name: 'Play chart', exact: true }).click();
   await expect(page.locator('.score-chords button').first()).toContainText('Am', { timeout: 5000 });
   await page.getByRole('button', { name: 'Score options' }).click();

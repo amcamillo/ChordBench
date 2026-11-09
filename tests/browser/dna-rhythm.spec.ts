@@ -40,7 +40,7 @@ test('groove examples alter geometry while preserving source and playback settin
   await page.getByText('Rhythm pattern & explanation', { exact: true }).click();
   await expect(page.getByText(/Meter override: the example cell/)).toBeVisible();
   await page.getByRole('button', { name: 'Song journey', exact: true }).click();
-  await page.getByRole('button', { name: 'Spatial DNA', exact: true }).click();
+  await page.getByRole('button', { name: 'Song DNA', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Visual groove', exact: true })).toHaveValue('jazz');
   await expect(page.getByRole('combobox', { name: /Meter/ })).toHaveValue('6/8');
 });

@@ -21,7 +21,7 @@ for (const width of [320, 375, 820, 1024]) {
       expect(chart.y).toBeLessThan(editor.y);
       await page.getByRole('button', { name: 'Graph', exact: true }).tap();
     }
-    for (const name of ['Song DNA', 'Spatial DNA', 'Song journey', 'Harmonic map', 'Chord structure']) {
+    for (const name of ['Song DNA', 'Score view', 'Song journey', 'Harmonic map', 'Chord structure']) {
       await page.getByRole('button', { name, exact: true }).tap();
       await check();
       if (width === 375 && name === 'Song DNA') await page.screenshot({ path: 'test-results/touch-phone-dna.png', fullPage: true });

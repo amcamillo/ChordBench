@@ -20,7 +20,7 @@ export function buildFocusedChord(parent: THREE.Group, chord: TimeChord, next: T
   const edge = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x7542d4 }));
   parent.add(edge);
   const nodes = pairMorphNotes(chord.notes, target.notes).map(pair => {
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(pair.from?.pitch === selectedPitch ? .19 : .14, 16, 12), new THREE.MeshBasicMaterial({ color: color(pair.from ?? pair.to), transparent: true }));
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(pair.from?.pitch === selectedPitch ? .31 : .25, 16, 12), new THREE.MeshBasicMaterial({ color: color(pair.from ?? pair.to), transparent: true }));
     mesh.userData.pitch = pair.from?.pitch; parent.add(mesh);
     const labels = [pair.from, pair.to].map(note => {
       if (!note) return null;

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 interface Props {
   songs: { id: string; title: string }[]; activeSong: string | null; onSong(id: string): void; playlistError: string;
-  chart: ReactNode; piano: ReactNode; dna: ReactNode;
+  chart: ReactNode; piano: ReactNode; dna: ReactNode; score: ReactNode;
   symbol: string; next: string; position: number; count: number; section: string;
   selectedId: string | null; playingId: string | null;
   playback: 'playing' | 'paused' | 'stopped'; disabled: boolean; status: string;
@@ -11,6 +11,8 @@ interface Props {
 
 export function SessionWorkspace(props: Props) {
   const [view, setView] = useState<'chart' | 'piano' | 'dna'>('chart');
+  const [dnaMode, setDnaMode] = useState<'spatial' | 'score'>('spatial');
+  const [dnaVisited, setDnaVisited] = useState(false);
   const chart = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (view !== 'chart') return;
@@ -38,13 +40,22 @@ export function SessionWorkspace(props: Props) {
         <div className="session-page-controls"><button onClick={() => turnPage(-1)}>Page back</button><button onClick={() => turnPage(1)}>Page forward</button></div>
       </div>
       <div className="session-piano" hidden={view !== 'piano'}>{props.piano}</div>
-      <div className="session-dna" hidden={view !== 'dna'}>{props.dna}</div>
+      <div className="session-dna" hidden={view !== 'dna'}>
+        <nav className="session-dna-mode" aria-label="Song DNA display">
+          <button aria-pressed={dnaMode === 'spatial'} onClick={() => setDnaMode('spatial')}>3D strand</button>
+          <button aria-pressed={dnaMode === 'score'} onClick={() => setDnaMode('score')}>Score</button>
+        </nav>
+        <div className="session-dna-body">
+          {dnaVisited && <div className="session-dna-spatial" hidden={dnaMode !== 'spatial'}>{props.dna}</div>}
+          {dnaMode === 'score' && <div className="session-dna-score">{props.score}</div>}
+        </div>
+      </div>
     </div>
     <div className="session-transport" aria-label="Session playback">
       {props.playback === 'playing' ? <button onClick={props.onPause}>Pause</button> : <button className="primary-button" disabled={props.disabled || !props.count} onClick={props.onPlay}>{props.playback === 'paused' ? 'Resume' : 'Play'}</button>}
       <button disabled={props.playback === 'stopped'} onClick={props.onStop}>Stop</button>
       <span role="status">{props.playlistError || props.status}</span>
     </div>
-    <nav className="session-tabs" aria-label="Session views">{(['chart', 'piano', 'dna'] as const).map(item => <button key={item} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{item === 'chart' ? 'Chart' : item === 'piano' ? 'Instrument' : 'Song DNA'}</button>)}</nav>
+    <nav className="session-tabs" aria-label="Session views">{(['chart', 'piano', 'dna'] as const).map(item => <button key={item} aria-current={view === item ? 'page' : undefined} onClick={() => { if (item === 'dna') setDnaVisited(true); setView(item); }}>{item === 'chart' ? 'Chart' : item === 'piano' ? 'Instrument' : 'Song DNA'}</button>)}</nav>
   </div>;
 }

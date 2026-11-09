@@ -5,7 +5,7 @@ test('shows chord tones and shared notes, linked to the selected instrument', as
   await page.getByLabel('Chords and lyrics').fill('C | Am | F | G');
   await expect(page.getByRole('button', { name: 'C, occurrence 1', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'C, occurrence 1', exact: true }).click();
-  await page.getByRole('button', { name: 'Spatial DNA', exact: true }).click();
+  await page.getByRole('button', { name: 'Song DNA', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Song DNA', exact: true })).toBeVisible();
   await expect(page.getByText(/2 shared pitch classes \(C, E\)/)).toBeVisible();
   const note = page.getByLabel('Notes in C').getByRole('button', { name: 'E 3M' });
@@ -21,7 +21,7 @@ test('shows chord tones and shared notes, linked to the selected instrument', as
 
 test('WebGL renders a 3D scene and offers view and motion controls', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Spatial DNA', exact: true }).click();
+  await page.getByRole('button', { name: 'Song DNA', exact: true }).click();
   const canvas = page.locator('.time-canvas');
   await expect(canvas).toBeVisible();
   await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.width)).toBeGreaterThan(0);
@@ -68,7 +68,7 @@ test('playback follow moves the focused chord without changing manual selection'
   await page.goto('/');
   await page.getByLabel('Chords and lyrics').fill('C | G | C');
   await page.getByRole('button', { name: 'C, occurrence 1', exact: true }).click();
-  await page.getByRole('button', { name: 'Spatial DNA', exact: true }).click();
+  await page.getByRole('button', { name: 'Song DNA', exact: true }).click();
   await page.getByLabel('Chart tempo in beats per minute').fill('240');
   await page.getByRole('button', { name: 'Play chart', exact: true }).click();
   await expect(page.getByText('Following playback', { exact: true })).toBeVisible();
@@ -105,7 +105,7 @@ test('mobile view respects reduced motion and has keyboard and text alternatives
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await page.getByRole('button', { name: 'Graph', exact: true }).click();
-  await page.getByRole('button', { name: 'Spatial DNA', exact: true }).click();
+  await page.getByRole('button', { name: 'Song DNA', exact: true }).click();
   await expect(page.getByText('Playback movement reduced by device setting.')).toBeVisible();
   await page.getByText('How to read this view').click();
   await expect(page.getByText(/Positions along the central thread represent written chord occurrences/)).toBeVisible();
@@ -120,7 +120,7 @@ test('unknown symbols do not create invented notes or shared-note links', async 
   await page.goto('/');
   await page.getByLabel('Chords and lyrics').fill('C | H7 | G');
   await page.getByRole('button', { name: 'H7, occurrence 2, unresolved', exact: true }).click();
-  await page.getByRole('button', { name: 'Spatial DNA', exact: true }).click();
+  await page.getByRole('button', { name: 'Song DNA', exact: true }).click();
   await expect(page.getByText('This symbol is unresolved, so no notes or relationships are guessed.')).toBeVisible();
   await expect(page.getByText(/an unresolved symbol prevents a note comparison/)).toBeVisible();
 });
@@ -140,7 +140,7 @@ test('the 3D renderer recovers cleanly when the view is repeatedly changed or co
     await expect(page.locator('.time-canvas')).toHaveAttribute('data-renderer', 'webgl');
     await page.getByRole('button', { name: 'Song journey', exact: true }).click();
     await expect(page.locator('.time-canvas')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Spatial DNA', exact: true }).click();
+    await page.getByRole('button', { name: 'Song DNA', exact: true }).click();
   }
   await expect(page.locator('.time-canvas')).toHaveAttribute('data-renderer', 'webgl');
   await page.getByRole('button', { name: 'Collapse visualization' }).click();

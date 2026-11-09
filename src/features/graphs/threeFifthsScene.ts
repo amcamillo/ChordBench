@@ -43,14 +43,14 @@ function glowTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas);
 }
 
-function labelSprite(label: string, fontSize = 26): THREE.Sprite {
+function labelSprite(label: string, fontSize = 32): THREE.Sprite {
   const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 64;
   const context = canvas.getContext('2d')!;
   context.font = `500 ${fontSize}px Inter, sans-serif`; context.textAlign = 'center'; context.textBaseline = 'middle';
   context.fillStyle = '#273252'; context.shadowColor = '#ffffff'; context.shadowBlur = 7; context.fillText(label, 128, 32);
   const texture = new THREE.CanvasTexture(canvas);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
-  sprite.scale.set(1.75, .44, 1); return sprite;
+  sprite.scale.set(2.1, .525, 1); return sprite;
 }
 
 export class ThreeFifthsScene {
@@ -188,7 +188,7 @@ export class ThreeFifthsScene {
     for (const note of FIFTHS) {
       const coords: THREE.Vector3[] = [];
       for (let i = 0; i <= 160; i++) { const z = 3 - i * 22 / 160; const p = point(note.pitch, z - focus * SPACING); p.z = z; coords.push(p); }
-      this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords), new THREE.LineBasicMaterial({ color: 0x817cbd, transparent: true, opacity: .32, depthWrite: false })));
+      this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords), new THREE.LineBasicMaterial({ color: 0x817cbd, transparent: true, opacity: .44, depthWrite: false })));
     }
     const start = Math.max(0, focus - 2);
     const visible = chords.slice(start, focus + LAYERS);
@@ -272,10 +272,10 @@ export class ThreeFifthsScene {
       if (a && b) {
         const middle = a.clone().lerp(b, .5); middle.multiplyScalar(1.18);
         const curve = new THREE.QuadraticBezierCurve3(a, middle, b);
-        const material = new THREE.LineBasicMaterial({ color: voice.semitones === 0 ? 0x087d9f : 0x7542d4, depthTest: false, depthWrite: false });
-        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(24)), material);
+        const color = voice.semitones === 0 ? 0x087d9f : 0x7542d4;
+        const line = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, .045, 6, false), new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false }));
         line.renderOrder = 25; this.voiceLayer.add(line);
-        const arrow = new THREE.Mesh(new THREE.ConeGeometry(.07, .22, 8), new THREE.MeshBasicMaterial({ color: material.color, depthTest: false, depthWrite: false }));
+        const arrow = new THREE.Mesh(new THREE.ConeGeometry(.12, .30, 8), new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false }));
         arrow.position.copy(curve.getPoint(.72)); arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangent(.72).normalize());
         arrow.renderOrder = 25; this.voiceLayer.add(arrow);
       }

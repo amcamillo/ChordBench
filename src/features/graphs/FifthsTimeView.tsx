@@ -8,13 +8,15 @@ import { GROOVES, METERS, type Meter, type VisualRhythm } from '../../domain/gra
 import { FIFTHS, sharedPitchClasses } from '../../domain/graphs/fifthsTime.ts';
 import type { TimeChord } from '../../domain/graphs/fifthsTime.ts';
 import type { ThreeFifthsScene } from './threeFifthsScene.ts';
+import type { ScoreChord } from '../../domain/graphs/score.ts';
+import { spelledMidiName } from '../../domain/instruments/voicings.ts';
 
-interface Props { tempo: number; chords: TimeChord[]; selectedId: string | null; playingId: string | null; playbackState: 'playing' | 'paused' | 'stopped'; playbackDisabled: boolean; onTimingCues(enabled: boolean, rhythm: VisualRhythm): void; onPlay(): void; onPause(): void; onStop(): void; getPlaybackPosition(): number; selectedPitch: number | null; stale: boolean; onSelect(id: string): void; onPitchSelect(pitch: number): void }
+interface Props { tempo: number; chords: TimeChord[]; selectedId: string | null; playingId: string | null; playbackState: 'playing' | 'paused' | 'stopped'; playbackDisabled: boolean; onTimingCues(enabled: boolean, rhythm: VisualRhythm): void; onPlay(): void; onPause(): void; onStop(): void; getPlaybackPosition(): number; selectedPitch: number | null; stale: boolean; onSelect(id: string): void; onPitchSelect(pitch: number): void; compact?: boolean; score?: ScoreChord[]; onScoreChoice?(id: string, candidate: string): void; guidedPlayback?: boolean; onGuidedPlayback?(value: boolean): void }
 
-export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackState, playbackDisabled, onTimingCues, onPlay, onPause, onStop, getPlaybackPosition, selectedPitch, stale, onSelect, onPitchSelect }: Props) {
+export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackState, playbackDisabled, onTimingCues, onPlay, onPause, onStop, getPlaybackPosition, selectedPitch, stale, onSelect, onPitchSelect, compact = false, score, onScoreChoice, guidedPlayback = false, onGuidedPlayback }: Props) {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [timingVisible, setTimingVisible] = useState(() => {
-    try { return localStorage.getItem('chord-workbench-timing-visible') !== 'false'; } catch { return true; }
+    try { const saved = localStorage.getItem('chord-workbench-timing-visible'); return saved === null ? !compact : saved !== 'false'; } catch { return !compact; }
   });
   useEffect(() => { try { localStorage.setItem('chord-workbench-timing-visible', String(timingVisible)); } catch { /* The control still works without storage. */ } }, [timingVisible]);
   const [voiceSelection, setVoiceSelection] = useState({ key: '', index: 0 });
@@ -30,22 +32,30 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
   const [follow, setFollow] = useState(true);
   const [yaw, setYaw] = useState(.15);
   const [tilt, setTilt] = useState(.4);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(compact ? 1.55 : 1);
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [rendererStatus, setRendererStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
   const [rendererError, setRendererError] = useState('');
   const canvas = useRef<HTMLCanvasElement>(null);
   const scene = useRef<ThreeFifthsScene | null>(null);
   const drag = useRef<{ x: number; y: number; yaw: number; tilt: number; moved: boolean } | null>(null);
+  const compactOptions = useRef<HTMLDialogElement>(null);
   const focusId = follow && playingId ? playingId : selectedId;
   const found = chords.findIndex(chord => chord.id === focusId);
   const focus = Math.max(0, found);
   const current = chords[focus];
   const next = chords[focus + 1];
   const voiceKey = `${current?.id}-${current?.symbol}-${next?.id}-${next?.symbol}`;
-  const voiceChoice = voiceSelection.key === voiceKey ? voiceSelection.index : 0;
-  const candidates = useMemo(() => current?.definition && next?.definition ? buildTransition(current.definition, next.definition).candidates : [], [current, next]);
+  const scoreChord = compact ? score?.find(item => item.id === current?.id) : undefined;
+  const candidates = useMemo(() => scoreChord ? scoreChord.candidates : current?.definition && next?.definition ? buildTransition(current.definition, next.definition).candidates : [], [current, next, scoreChord]);
+  const voiceChoice = scoreChord ? Math.max(0, candidates.findIndex(candidate => candidate.id === scoreChord.chosen?.id)) : voiceSelection.key === voiceKey ? voiceSelection.index : 0;
   const voiceCandidate = candidates[voiceChoice] ?? null;
+  const compactMovements = voiceCandidate?.movements.map(voice => !voice.from ? `${spelledMidiName(voice.to!.midi, voice.to!.spelling)} enters` : !voice.to ? `${spelledMidiName(voice.from.midi, voice.from.spelling)} leaves` : voice.semitones === 0 ? `${spelledMidiName(voice.from.midi, voice.from.spelling)} stays` : `${spelledMidiName(voice.from.midi, voice.from.spelling)} → ${spelledMidiName(voice.to.midi, voice.to.spelling)}`).join(' · ');
+  function changeVoice(index: number) {
+    const candidate = candidates[index];
+    if (compact && current && candidate && onScoreChoice) onScoreChoice(current.id, candidate.id);
+    else setVoiceSelection({ key: voiceKey, index });
+  }
 
   const isSelected = !!current && current.id === selectedId;
   const shared = useMemo(() => current && next ? sharedPitchClasses(current, next) : [], [current, next]);
@@ -90,14 +100,15 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
   function goTo(index: number) {
     const chord = chords[index];
     if (!chord || stale) return;
-    setFollow(false); onSelect(chord.id);
+    if (!compact) setFollow(false);
+    onSelect(chord.id);
   }
   function selectNote(pitch: number) {
     if (stale || !current) return;
     if (!isSelected) { setFollow(false); onSelect(current.id); return; }
     onPitchSelect(pitch);
   }
-  return <section className="time-view" aria-labelledby="time-view-heading">
+  return <section className={`time-view ${compact ? 'time-view-compact' : ''}`} aria-label={compact ? '3D Song DNA' : undefined} aria-labelledby={compact ? undefined : 'time-view-heading'}>
     <div className="time-view-header"><div><span className="time-kicker">Your chart in harmony</span><h2 id="time-view-heading">Song DNA</h2><p>Follow the notes and connections woven through your chart.</p></div><div className="time-view-progress"><strong>{chords.length ? focus + 1 : 0}</strong><span> / {chords.length} chords</span></div></div>
     {!chords.length ? <div className="time-empty"><p>Add chords to your chart to begin exploring their notes in the circle of fifths.</p></div> : <>
       <div className="dna-scope" role="group" aria-label="Song DNA scope"><button aria-pressed={!overview} onClick={() => setOverview(false)}>Chord detail</button><button aria-pressed={overview} onClick={() => setOverview(true)}>Whole song</button><span>{overview ? `All ${chords.length} written chords, first to last` : 'Nearby chords with individual note selection'}</span></div>
@@ -121,12 +132,25 @@ export function FifthsTimeView({ tempo, chords, selectedId, playingId, playbackS
         <div className="time-stage-horizon" aria-hidden="true">written order →</div>
         {rendererStatus === 'unavailable' && <p className="time-render-error" role="alert">{rendererError}</p>}
       </div>
-      <label className="dna-timing-toggle"><input type="checkbox" checked={timingVisible} onChange={event => setTimingVisible(event.target.checked)}/> Timing guide & beat cues</label>
+      {compact && <div className="dna-compact-summary">
+        <div className="dna-compact-line"><strong>{current.symbol} <span aria-hidden="true">→</span> {next?.symbol ?? 'End'}</strong><button onClick={() => compactOptions.current?.showModal()}>3D options</button></div>
+        <p>{voiceEnabled ? compactMovements ?? (next ? 'Both chords must resolve to compare voices.' : 'Last chord in chart.') : 'Voice-leading paths are off.'}</p>
+        <dialog ref={compactOptions} className="dna-compact-options" aria-labelledby="dna-compact-options-heading"><div className="dna-compact-options-header"><h2 id="dna-compact-options-heading">3D options</h2><button onClick={() => compactOptions.current?.close()}>Close</button></div>
+          <DnaVoiceLeading candidates={candidates} choice={voiceChoice} onChoice={changeVoice} enabled={voiceEnabled} onToggle={setVoiceEnabled} disabled={stale} hasNext={!!next} guidedPlayback={guidedPlayback}/>
+          <label className="time-follow"><input type="checkbox" checked={guidedPlayback} onChange={event => onGuidedPlayback?.(event.target.checked)}/> Use suggested voicings for piano playback</label>
+          <label className="time-follow"><input type="checkbox" checked={follow} onChange={event => setFollow(event.target.checked)}/> Follow playback</label>
+          <label className="time-follow"><input type="checkbox" checked={timingVisible} onChange={event => setTimingVisible(event.target.checked)}/> Timing guide &amp; beat cues</label>
+          <div className="time-sliders"><label>View angle<input type="range" min="-0.75" max="0.75" step="0.05" value={yaw} onChange={event => setYaw(Number(event.target.value))} aria-label="Session 3D view angle"/></label><label>View tilt<input type="range" min="-0.65" max="0.75" step="0.05" value={tilt} onChange={event => setTilt(Number(event.target.value))} aria-label="Session 3D view tilt"/></label><label>Zoom<input type="range" min="0.7" max="1.8" step="0.05" value={zoom} onChange={event => setZoom(Number(event.target.value))} aria-label="Session 3D view zoom"/></label></div>
+          <button onClick={() => { setYaw(.15); setTilt(.4); setZoom(1.55); }}>Reset 3D view</button>
+          <p>Paths illustrate the chosen piano voicing, not an inferred rhythm or fingering. The same pitch does not imply a sustained note. Use Score for individual note auditions and notation.</p>
+        </dialog>
+      </div>}
+      {!compact && <label className="dna-timing-toggle"><input type="checkbox" checked={timingVisible} onChange={event => setTimingVisible(event.target.checked)}/> Timing guide & beat cues</label>}
       <p className="dna-time-hint">{overview ? "Time line: one mark per written chord; the moving line follows playback." : "Focused chord stays pinned; background chords travel along the time line. The bottom-right guide shows the selected visual meter and groove; its moving marker follows playback. Playback still assumes one 4/4 bar per chord. Shapes anticipate changes by 180 ms; audio stays on the beat."}</p>
-      <DnaVoiceLeading candidates={candidates} choice={voiceChoice} onChoice={index => setVoiceSelection({ key: voiceKey, index })} enabled={voiceEnabled} onToggle={setVoiceEnabled} disabled={stale} hasNext={!!next}/>
+      {!compact && <DnaVoiceLeading candidates={candidates} choice={voiceChoice} onChoice={changeVoice} enabled={voiceEnabled} onToggle={setVoiceEnabled} disabled={stale} hasNext={!!next}/>}
       {overview && <ChordLens chord={current} disabled={stale} onDive={() => { setFollow(false); onSelect(current.id); setOverview(false); }}/>}
       <div className="time-controls"><div className="time-control-group"><button disabled={stale || focus === 0} onClick={() => goTo(focus - 1)}>Previous chord</button><button disabled={stale || focus >= chords.length - 1} onClick={() => goTo(focus + 1)}>Next chord</button><button onClick={() => { setYaw(.15); setTilt(.4); setZoom(1); }}>Reset view</button></div>
-        <label className="time-follow"><input type="checkbox" checked={follow} onChange={event => setFollow(event.target.checked)}/> Follow playback</label>
+        {!compact && <label className="time-follow"><input type="checkbox" checked={follow} onChange={event => setFollow(event.target.checked)}/> Follow playback</label>}
         {reducedMotion && <span className="time-motion-note">Playback movement reduced by device setting.</span>}
       </div>
       <div className="dna-jump"><label>Jump to chord<input type="number" min="1" max={chords.length} value={focus + 1} disabled={stale} onChange={event => { const n = event.target.valueAsNumber; if (Number.isInteger(n)) goTo(n - 1); }}/></label><label>Jump to section<select value={String(chords.reduce((start, chord, index) => index <= focus && (index === 0 || chord.section !== chords[index - 1].section) ? index : start, 0))} disabled={stale} onChange={event => goTo(Number(event.target.value))}>{chords.flatMap((chord, index) => index === 0 || chord.section !== chords[index - 1].section ? [<option key={chord.id} value={index}>{chord.section} - chord {index + 1}</option>] : [])}</select></label></div>
