@@ -1,0 +1,77 @@
+.playlist-manager { margin-bottom: 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.playlist-manager > summary { padding: 12px 16px; font-size: 16px; min-height: 48px; }
+.playlist-body { padding: 0 16px 16px; }
+.playlist-body p { font-size: 14px; line-height: 1.5; }
+.playlist-body input { min-height: 48px; padding: 8px; width: 100%; min-width: 0; font-size: 16px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); }
+.playlist-body input[type=file] { margin-block: 8px; }
+.playlist-body input::file-selector-button { min-height: 48px; }
+.playlist-add, .playlist-backup { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-block: 12px; }
+.playlist-add label { flex: 1; min-width: 150px; }
+.playlist-songs { list-style: none; padding: 0; display: grid; gap: 10px; }
+.playlist-songs li { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.playlist-songs li[data-active=true] { border-color: var(--accent); background: var(--accent-soft); }
+.playlist-songs label { flex: 1; min-width: 140px; }
+.playlist-songs li > div, .playlist-preview { display: flex; flex-wrap: wrap; gap: 8px; }
+.playlist-preview { display: block; background: var(--accent-soft); padding: 12px; }
+.playlist-preview button { margin: 4px; }
+.playlist-backup span { font-size: 13px; }
+.session-song { flex: 1; min-width: 0; }
+.session-song select { width: 100%; min-width: 0; min-height: 48px; font-size: 16px; }
+.guided-voicing { margin: 8px 0; color: var(--muted); font-size: 14px; }
+.score-dna { padding: 18px; color: #282d43; background: #fffdf7; min-width: 0; }
+.score-toolbar, .score-actions, .score-switches { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.score-toolbar { justify-content: space-between; }
+.score-toolbar h2 { font-size: 20px; }
+.score-toolbar small { display: block; font-size: 12px; font-weight: 400; color: #5c6072; }
+.score-chords { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.score-chords button { text-align: left; padding: 10px 16px; background: #f0f4ff; border-color: #becceb; color: #253d7b; }
+.score-chords button + button { background: #f7eff9; border-color: #d5c3dd; color: #694672; }
+.score-chords :is(small, strong, span) { display: block; }
+.score-chords strong { font-size: clamp(24px, 4vw, 38px); line-height: 1.3; overflow-wrap: anywhere; }
+.score-chords small, .score-chords span { font-size: 12px; font-weight: 400; }
+.score-paper { perspective: 1000px; padding: 12px 6px 0; }
+.score-staff { width: 100%; max-height: 390px; display: block; transform-origin: center; background: #fffdf7; border: 1px solid #e8e2d3; border-radius: 4px; }
+.score-paper[data-depth=true] .score-staff { transform: rotateX(10deg) rotateY(-6deg); box-shadow: 5px 8px 0 #e6dfcf, 10px 16px 18px #433d591a; }
+.score-assumption { font-size: 12px; color: #665d4b; margin: 16px 0 10px; }
+.score-actions button { flex: 1; min-height: 48px; }
+.score-options { margin-top: 12px; }
+.score-options label { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.score-options select { flex: 1; min-width: 0; min-height: 48px; font-size: 14px; }
+.score-movement { font-size: 14px; line-height: 1.5; margin: 10px 0; }
+.score-note-names { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.score-note-names button { min-height: 48px; min-width: 48px; }
+.score-switches { margin-top: 12px; }
+.score-switches button { flex: 1; font-size: 13px; }
+.score-switches button[aria-pressed=true] { color: #253d7b; background: #e9efff; border-color: #849ac9; }
+.score-playback-choice { display: flex; align-items: center; gap: 10px; min-height: 48px; font-size: 13px; margin-top: 8px; }
+.score-playback-choice input { width: 24px; height: 24px; flex: none; }
+.score-status { font-size: 13px; }
+.score-status:empty { display: none; }
+.score-pitch-names { font-size: 13px; color: #484e69; margin: 6px 0; }
+.score-help { width: min(620px, calc(100% - 24px)); max-height: calc(100dvh - 32px); border: 1px solid var(--line); border-radius: 12px; padding: 20px; color: var(--ink); }
+.score-help::backdrop { background: #19223c88; }
+.score-help-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: -20px; background: white; padding-block: 8px; }
+.score-help p { line-height: 1.6; font-size: 15px; margin: 12px 0; }
+.score-help h3 { font-size: 17px; margin-top: 20px; }
+.session-dna .score-dna { height: 100%; overflow: auto; overscroll-behavior: contain; padding: 8px 12px; }
+.session-dna .score-toolbar h2 { font-size: 16px; }
+.session-dna .score-chords { margin-top: 6px; }
+.session-dna .score-chords button { padding: 5px 10px; }
+.session-dna .score-chords span { display: none; }
+.session-dna .score-chords strong { font-size: 24px; }
+.session-dna .score-staff { max-height: min(210px, 28dvh); }
+.session-dna .score-assumption { margin: 10px 0 4px; font-size: 11px; }
+.session-dna .score-movement { margin: 6px 0; font-size: 12px; }
+.session-dna .score-pitch-names { font-size: 12px; margin: 4px 0; }
+.session-dna .score-actions { position: sticky; bottom: -8px; background: #fffdf7; padding: 6px 0; z-index: 1; }
+.session-dna .score-actions button { font-size: 13px; padding-inline: 6px; }
+@media (min-width: 700px) {
+  .session-dna .score-dna { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(210px, 1fr); gap: 8px 18px; align-content: start; }
+  .session-dna .score-toolbar, .session-dna .score-chords { grid-column: 1; }
+  .session-dna .score-paper { grid-column: 1; grid-row: 3 / 9; }
+  .session-dna .score-staff { max-height: 480px; }
+  .session-dna .score-assumption { grid-column: 2; grid-row: 1; margin: 0; }
+  .session-dna .score-actions, .session-dna .score-options, .session-dna .score-movement, .session-dna .score-note-names, .session-dna .score-switches, .session-dna .score-playback-choice, .session-dna .score-status { grid-column: 2; position: static; margin: 0; }
+  .session-dna .score-pitch-names { grid-column: 2; }
+}
+@media (prefers-reduced-motion: reduce) { .score-paper[data-depth=true] .score-staff { transform: none; box-shadow: none; } }

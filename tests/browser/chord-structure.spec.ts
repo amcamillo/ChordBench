@@ -8,7 +8,7 @@ test('structure note selection highlights the instrument; comparison draws on de
   await expect(third).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Piano E4, chord note, selected in chord structure' })).toBeVisible();
   await expect(page.getByLabel('Selected chord note')).toContainText('Reference pitch: E4');
-  await expect(page.getByRole('button', { name: 'Play chart' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Play chart', exact: true })).toBeVisible();
   await expect(page.getByText('C4 to E4: 4 semitones apart in this voicing.')).toBeVisible();
   await page.getByRole('button', { name: 'Show connection' }).click();
   await expect(page.getByRole('button', { name: 'Hide connection' })).toHaveAttribute('aria-pressed', 'true');
@@ -35,8 +35,8 @@ test('structure audio stops chart playback and slash bass is distinguished', asy
   await page.getByRole('button', { name: 'C/E, occurrence 9', exact: true }).click();
   await page.getByRole('button', { name: 'Chord structure', exact: true }).click();
   await expect(page.getByText(/Requested slash bass: E.*E3/)).toBeVisible();
-  await page.getByRole('button', { name: 'Play chart' }).click();
-  await expect(page.getByRole('button', { name: 'Pause chart' })).toBeVisible();
+  await page.getByRole('button', { name: 'Play chart', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause chart', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Hear pair' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Chart playback stopped for chord structure audio.' })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'Playing C4 and E4 on reference piano.' })).toBeVisible();

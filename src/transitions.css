@@ -1,0 +1,8 @@
+.transition-inspector { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid currentColor; }
+.transition-inspector h4 { font-size: 1.3rem; margin: .7rem 0; }
+.transition-inspector p, .transition-inspector li { line-height: 1.55; overflow-wrap: anywhere; }
+.transition-inspector label { display: grid; gap: .5rem; }
+.transition-inspector select { width: 100%; min-width: 0; min-height: 44px; }
+.transition-inspector ul { padding-left: 1.25rem; }
+.transition-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.transition-actions button { min-height: 44px; }

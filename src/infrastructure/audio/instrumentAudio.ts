@@ -7,13 +7,14 @@ export interface PlaybackNote { midi: number; delay: number; duration?: number }
 export class InstrumentAudio {
   private context: AudioContext | null = null;
   private voices = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
+  private beatVoices = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
   private generation = 0;
-  private owner: 'preview' | 'song' | 'structure' | null = null;
+  private owner: 'preview' | 'song' | 'structure' | 'transition' | null = null;
 
   get currentTime(): number { return this.context?.currentTime ?? 0; }
   get state(): AudioContextState | 'unavailable' { return this.context?.state ?? 'unavailable'; }
 
-  async begin(owner: 'preview' | 'song' | 'structure'): Promise<number | null> {
+  async begin(owner: 'preview' | 'song' | 'structure' | 'transition'): Promise<number | null> {
     this.stop();
     this.owner = owner;
     const generation = this.generation;
@@ -24,7 +25,7 @@ export class InstrumentAudio {
     return context.currentTime + 0.025;
   }
 
-  async play(notes: PlaybackNote[], instrument: Instrument, owner: 'preview' | 'structure' = 'preview'): Promise<void> {
+  async play(notes: PlaybackNote[], instrument: Instrument, owner: 'preview' | 'structure' | 'transition' = 'preview'): Promise<void> {
     const start = await this.begin(owner);
     if (start === null) return;
     this.schedule(notes, instrument, start);
@@ -54,9 +55,35 @@ export class InstrumentAudio {
     }
   }
 
-  stop(owner?: 'preview' | 'song' | 'structure'): void {
+  scheduleBeat(when: number, strength: number): void {
+    const context = this.context;
+    if (!context || context.state !== 'running') return;
+    const oscillator = context.createOscillator(), gain = context.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(850, when);
+    gain.gain.setValueAtTime(.0001, when);
+    gain.gain.linearRampToValueAtTime(.045 * strength, when + .004);
+    gain.gain.exponentialRampToValueAtTime(.0001, when + .055);
+    oscillator.connect(gain); gain.connect(context.destination);
+    const voice = { oscillator, gain }; this.beatVoices.add(voice);
+    oscillator.onended = () => { this.beatVoices.delete(voice); oscillator.disconnect(); gain.disconnect(); };
+    oscillator.start(when); oscillator.stop(when + .06);
+  }
+
+  stopBeats(): void {
+    if (!this.context) return;
+    const now = this.context.currentTime;
+    for (const { oscillator, gain } of this.beatVoices) {
+      gain.gain.cancelScheduledValues(now); gain.gain.setValueAtTime(.0001, now);
+      try { oscillator.stop(now); } catch { /* already stopped */ }
+    }
+    this.beatVoices.clear();
+  }
+
+  stop(owner?: 'preview' | 'song' | 'structure' | 'transition'): void {
     if (owner && this.owner !== owner) return;
     this.generation++;
+    this.stopBeats();
     this.owner = null;
     if (!this.context) return;
     const now = this.context.currentTime;

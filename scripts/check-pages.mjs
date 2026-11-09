@@ -27,14 +27,22 @@ try {
   page.on('pageerror', error => failures.push(error.message));
   page.on('response', response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
   await page.goto(`http://127.0.0.1:${port}${prefix}`, { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: 'Song DNA' }).waitFor();
+  await page.getByRole('region', { name: 'Song DNA score' }).waitFor();
+  await page.getByRole('button', { name: 'Spatial DNA', exact: true }).click();
   await page.locator('.time-canvas[data-renderer="webgl"]').waitFor();
   await page.evaluate(() => document.fonts.ready);
   if (!await page.evaluate(() => document.fonts.check('400 16px Inter'))) failures.push('Inter font did not load');
   await mkdir('test-results', { recursive: true });
   await page.screenshot({ path: 'test-results/pages-subpath.png', fullPage: true });
   if (failures.length) throw new Error(failures.join('\n'));
-  console.log('Production site loaded successfully under /ChordBench/ with WebGL and local fonts.');
+  const mobile = await browser.newPage({ viewport: { width: 375, height: 740 }, hasTouch: true });
+  mobile.on('pageerror', error => failures.push(error.message));
+  await mobile.goto(`http://127.0.0.1:${port}${prefix}`, { waitUntil: 'networkidle' });
+  await mobile.getByRole('navigation', { name: 'Session views' }).getByRole('button', { name: 'Song DNA' }).click();
+  await mobile.getByRole('region', { name: 'Song DNA score' }).waitFor();
+  if (await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight)) failures.push('Mobile session exceeds the viewport');
+  if (failures.length) throw new Error(failures.join('\n'));
+  console.log('Production site loaded under /ChordBench/: staff score, WebGL view, local fonts and mobile session.');
 } finally {
   await browser?.close();
   await new Promise(resolveClose => server.close(resolveClose));

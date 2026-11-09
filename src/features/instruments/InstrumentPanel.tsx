@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChordDefinition } from '../../domain/harmony/types.ts';
 import { guitarPitches, midiName, pianoVoicing, resolveGuitar, spelledMidiName } from '../../domain/instruments/voicings.ts';
-import type { GuitarShape } from '../../domain/instruments/voicings.ts';
+import type { GuitarShape, PianoNote } from '../../domain/instruments/voicings.ts';
 import type { InstrumentAudio, Instrument, PlaybackNote } from '../../infrastructure/audio/instrumentAudio.ts';
 
 function GuitarDiagram({ shape, rootPitch }: { shape: GuitarShape; rootPitch: number }) {
@@ -17,15 +17,15 @@ function GuitarDiagram({ shape, rootPitch }: { shape: GuitarShape; rootPitch: nu
   </svg>;
 }
 
-interface Props { chord: ChordDefinition; occurrenceId: string; disabled: boolean; instrument: Instrument; onInstrumentChange(instrument: Instrument): void; audio: InstrumentAudio; onPreview(): void; songPlaying: boolean; focusPitchClass: number | null }
-export function InstrumentPanel({ chord, occurrenceId, disabled, instrument, onInstrumentChange, audio, onPreview, songPlaying, focusPitchClass }: Props) {
+interface Props { chord: ChordDefinition; occurrenceId: string; disabled: boolean; instrument: Instrument; onInstrumentChange(instrument: Instrument): void; audio: InstrumentAudio; onPreview(): void; songPlaying: boolean; focusPitchClass: number | null; guidedNotes?: PianoNote[] }
+export function InstrumentPanel({ chord, occurrenceId, disabled, instrument, onInstrumentChange, audio, onPreview, songPlaying, focusPitchClass, guidedNotes }: Props) {
   const [inversion, setInversion] = useState(0);
   const [active, setActive] = useState<number[]>([]);
   const [status, setStatus] = useState('Tap a key or play the chord to enable sound.');
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const generation = useRef(0);
   const pianoViewport = useRef<HTMLDivElement>(null);
-  const piano = useMemo(() => pianoVoicing(chord, inversion), [chord, inversion]);
+  const piano = useMemo(() => guidedNotes ?? pianoVoicing(chord, inversion), [chord, inversion, guidedNotes]);
   const shape = useMemo(() => resolveGuitar(chord)[0], [chord]);
 
   function stop() {
@@ -47,16 +47,16 @@ export function InstrumentPanel({ chord, occurrenceId, disabled, instrument, onI
   useEffect(() => { if (songPlaying) { stop(); setStatus('Chart playback is active.'); } }, [songPlaying]);
   useEffect(() => {
     const container = pianoViewport.current;
-    if (!container || focusPitchClass === null || instrument !== 'piano') return;
+    if (!container || instrument !== 'piano') return;
     const reveal = () => {
-      const key = container.querySelector<HTMLElement>('.piano-key.theory-focus');
+      const key = container.querySelector<HTMLElement>(focusPitchClass === null ? '.piano-key.voicing-key' : '.piano-key.theory-focus');
       if (key && container.clientWidth) container.scrollLeft = Math.max(0, key.offsetLeft - container.clientWidth / 2 + key.offsetWidth / 2);
     };
     reveal();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(reveal);
     observer?.observe(container);
     return () => observer?.disconnect();
-  }, [focusPitchClass, instrument, chord.symbol, inversion]);
+  }, [focusPitchClass, instrument, chord.symbol, inversion, guidedNotes]);
 
   async function play(notes: PlaybackNote[], description: string) {
     if (disabled || !notes.length) return;
@@ -88,7 +88,7 @@ export function InstrumentPanel({ chord, occurrenceId, disabled, instrument, onI
   let whites = 0;
   const pianoKeys = keys.map(midi => {
     const black = isBlack(midi);
-    const x = black ? whites * 45 - 16 : whites++ * 45;
+    const x = black ? whites * 64 - 24 : whites++ * 64;
     const selected = piano.some(note => note.midi === midi);
     const focused = selected && midi % 12 === focusPitchClass;
     return <button key={midi} className={`piano-key ${black ? 'black-key' : 'white-key'} ${selected ? `voicing-key ${chord.pitchClasses[0] === midi % 12 ? 'orbital-root' : chord.pitchClasses.includes(midi % 12) ? 'orbital-tone' : 'orbital-bass'}` : ''} ${active.includes(midi) ? 'sounding-key' : ''} ${focused ? 'theory-focus' : ''}`}
@@ -109,11 +109,11 @@ export function InstrumentPanel({ chord, occurrenceId, disabled, instrument, onI
     {disabled && <p className="instrument-hint">Wait for the chart to finish updating before playing.</p>}
     {focusedSpelling && <p className="instrument-hint">Focused chord tone: {focusedSpelling}. Dashed outlines mark matching pitches.</p>}
     {instrument === 'piano' ? <>
-      <div className="instrument-options"><label>Voicing<select aria-label="Piano inversion" value={inversion} disabled={disabled} onChange={event => { stop(); setInversion(Number(event.target.value)); }}>
+      {guidedNotes ? <p className="guided-voicing">Suggested voicing from Song DNA</p> : <div className="instrument-options"><label>Voicing<select aria-label="Piano inversion" value={inversion} disabled={disabled} onChange={event => { stop(); setInversion(Number(event.target.value)); }}>
         <option value={0}>Root position</option>{chord.notes.slice(1).map((_, i) => <option key={i} value={i + 1}>Inversion {i + 1}</option>)}
-      </select></label></div>
+      </select></label></div>}
       <p className="instrument-hint">Suggested note arrangement. C4 is middle C; tap any key to hear it. Fingering is not available for this voicing.</p>
-      <div className="piano-scroll" ref={pianoViewport} role="region" tabIndex={0} aria-label="Piano keyboard, scroll horizontally for more keys"><div className="piano-keyboard" style={{ width: `${whites * 45}px` }}>{pianoKeys}</div></div>
+      <div className="piano-scroll" ref={pianoViewport} role="region" tabIndex={0} aria-label="Piano keyboard, scroll horizontally for more keys"><div className="piano-keyboard" style={{ width: `${whites * 64}px` }}>{pianoKeys}</div></div>
       <p className="instrument-hint">Highlighted keys: {piano.map(note => `${spelledMidiName(note.midi, note.spelling)}${note.role === 'Bass' ? ' (bass)' : ''}`).join(' · ')}. Key labels use sharp names for black keys.</p>
       <div className="instrument-actions"><button disabled={disabled} onClick={() => playAll(piano.map(note => note.midi), 0, `${chord.symbol} together`)}>Play chord</button><button disabled={disabled} onClick={() => playAll(piano.map(note => note.midi), .25, `${chord.symbol} as an arpeggio`)}>Play arpeggio</button><button onClick={() => { stop(); setStatus('Stopped.'); }}>Stop sound</button></div>
       <div className="note-buttons" aria-label="Piano chord notes">{piano.map((note, i) => <button className={`orbital-note ${note.midi % 12 === chord.pitchClasses[0] ? 'orbital-root' : chord.pitchClasses.includes(note.midi % 12) ? 'orbital-tone' : 'orbital-bass'}`} key={`${note.midi}-${i}`} disabled={disabled} onClick={() => void play([{ midi: note.midi, delay: 0 }], midiName(note.midi))}>{spelledMidiName(note.midi, note.spelling)}{note.role === 'Bass' ? ' bass' : ''}</button>)}</div>

@@ -1,0 +1,60 @@
+/* A bounded playing surface: only the music pane scrolls, never its controls. */
+.session-shell { height: 100dvh; padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left)); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; gap: 6px; max-width: 1600px; margin: auto; background: #f8f7ff; }
+.session-shell button { min-height: 48px; min-width: 48px; font-size: 16px; }
+.session-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.session-header h1 { margin: 0; font-size: 18px; }
+.session-header h1 span { color: var(--muted); font-size: 13px; font-weight: 400; }
+.session-chord { display: grid; grid-template-columns: 56px minmax(0, 1fr) 56px; align-items: center; gap: 8px; }
+.session-chord > div { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.session-chord strong { font-size: 30px; line-height: 1.1; overflow-wrap: anywhere; }
+.session-chord span { font-size: 13px; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
+.session-chord > button { font-size: 28px; padding: 0; }
+.session-content { min-height: 0; min-width: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: white; }
+.session-chart { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.session-chart .chart-scroll { min-height: 0; height: 100%; overflow: auto; padding: 8px 12px; overscroll-behavior: contain; }
+.session-page-controls, .session-tabs { display: flex; gap: 8px; padding-block: 4px; }
+.session-page-controls { border-top: 1px solid var(--line); padding-inline: 8px; }
+.session-page-controls button, .session-tabs button { flex: 1; }
+.session-tabs button[aria-current=page] { background: var(--accent-soft); color: var(--navy); border-color: var(--accent); box-shadow: inset 0 -3px var(--accent); }
+.session-transport { display: flex; align-items: center; gap: 8px; }
+.session-transport > button { flex: 1; }
+.session-transport > span { flex: 2; font-size: 12px; line-height: 1.3; max-height: 48px; overflow: auto; }
+.session-piano { height: 100%; overflow: auto; overscroll-behavior: contain; }
+.session-piano .instrument-panel { border: 0; margin: 0; padding: 12px; }
+.session-piano .instrument-heading, .session-piano .instrument-hint, .session-piano .instrument-switch { display: none; }
+.session-piano .instrument-options { margin: 0 0 8px; }
+.session-piano .instrument-options label { display: flex; align-items: center; gap: 12px; }
+.session-piano .instrument-options select { flex: 1; margin: 0; }
+.session-piano .instrument-actions { margin: 8px 0; }
+.session-piano .note-buttons { margin: 8px 0; }
+.session-piano .audio-status { margin: 6px 0 0; font-size: 12px; }
+.session-piano .guitar-layout { grid-template-columns: 120px minmax(0, 1fr); }
+.session-piano .guitar-diagram { max-height: 150px; }
+.session-dna { height: 100%; }
+.session-dna .time-view { height: 100%; padding: 0; }
+.session-dna .time-view > :not(.time-stage):not(.time-empty) { display: none; }
+.session-dna .time-stage { height: 100%; border: 0; border-radius: 0; }
+.session-dna .time-canvas { height: 100%; min-height: 0; }
+.session-dna .dna-stage-transport { display: none; }
+.session-dna .dna-timing-ruler { position: absolute; inset: auto 8px 8px auto; width: 150px; }
+.session-shell :is(button, a, input, select, [tabindex]) { scroll-margin: 4px; }
+@media (max-width: 479px) {
+  .session-chord > div { display: block; }
+  .session-chord span { display: block; }
+  .session-header h1 span { display: none; }
+  .session-transport > span { flex: 1; }
+  .session-piano .instrument-actions button { font-size: 13px; padding-inline: 8px; }
+}
+@media (max-height: 500px) and (min-width: 600px) {
+  .session-shell { grid-template-columns: minmax(0, 1fr) 220px; grid-template-rows: auto minmax(0, 1fr) auto; }
+  .session-header { grid-column: 2; grid-row: 1; }
+  .session-chord { grid-column: 1; grid-row: 1; }
+  .session-content { grid-column: 1; grid-row: 2 / 4; }
+  .session-transport { grid-column: 2; grid-row: 2; flex-wrap: wrap; align-content: center; }
+  .session-transport > span { flex-basis: 100%; }
+  .session-tabs { grid-column: 2; grid-row: 3; flex-direction: column; }
+  .session-piano .instrument-panel { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 8px; }
+  .session-piano .instrument-options { grid-column: 1 / -1; }
+  .session-piano .instrument-actions { margin: 0; }
+  .session-piano .note-buttons, .session-piano .audio-status { margin: 0; }
+}

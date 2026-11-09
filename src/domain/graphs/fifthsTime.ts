@@ -1,5 +1,5 @@
 import type { ParsedChart } from '../chart/parser.ts';
-import type { AccidentalPreference } from '../harmony/types.ts';
+import type { AccidentalPreference, ChordDefinition } from '../harmony/types.ts';
 import type { TheoryPort } from '../../ports/theory.ts';
 
 // Clockwise perfect fifths. Enharmonic labels are display names, not key guesses.
@@ -11,14 +11,14 @@ export const FIFTHS = [
 ] as const;
 
 export interface TimeNote { pitch: number; spelling: string; interval: string; root: boolean }
-export interface TimeChord { id: string; order: number; section: string; symbol: string; notes: TimeNote[]; bass: string | null; unresolved: boolean }
+export interface TimeChord { id: string; order: number; section: string; symbol: string; notes: TimeNote[]; bass: string | null; unresolved: boolean; definition?: ChordDefinition }
 
 export function buildFifthsTime(chart: ParsedChart, theory: TheoryPort, shift: number, preference: AccidentalPreference): TimeChord[] {
   return chart.occurrences.map(item => {
     const result = theory.transpose(item.symbol, shift, preference);
     if (result.status !== 'resolved') return { id: item.id, order: item.order, section: item.section, symbol: item.symbol, notes: [], bass: null, unresolved: true };
     const chord = result.chord;
-    return { id: item.id, order: item.order, section: item.section, symbol: chord.symbol, bass: chord.slashBass ?? null, unresolved: false,
+    return { id: item.id, order: item.order, section: item.section, symbol: chord.symbol, bass: chord.slashBass ?? null, unresolved: false, definition: chord,
       notes: chord.notes.map((spelling, i) => ({ pitch: chord.pitchClasses[i], spelling, interval: chord.intervals[i], root: i === 0 })) };
   });
 }

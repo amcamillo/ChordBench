@@ -39,14 +39,14 @@ test('workspace panels collapse independently without losing chart or selection'
 
 test('collapsing playback settings and visualization preserves active playback', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Play chart' }).click();
-  await expect(page.getByRole('button', { name: 'Pause chart' })).toBeVisible();
+  await page.getByRole('button', { name: 'Play chart', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause chart', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Collapse playback settings' }).click();
   await expect(page.getByLabel('Chart playback instrument')).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Pause chart' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pause chart', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Collapse visualization' }).click();
-  await expect(page.getByRole('button', { name: 'Pause chart' })).toBeVisible();
-  await page.getByRole('button', { name: 'Stop chart' }).click();
+  await expect(page.getByRole('button', { name: 'Pause chart', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop chart', exact: true }).click();
   await page.getByRole('button', { name: 'Expand playback settings' }).click();
   await expect(page.getByLabel('Chart playback instrument')).toBeVisible();
 });

@@ -9,7 +9,7 @@ test('graph, chart and inspector share occurrence selection without starting aud
   await third.click();
   await expect(page.getByRole('button', { name: 'C, occurrence 3', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('Chart / occurrence 3', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Play chart' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Play chart', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'G, occurrence 2', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Graph G, occurrence 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Transpose up one semitone' }).click();
@@ -55,10 +55,10 @@ test('playback highlights graph independently of manual exploration', async ({ p
   await expect(page.getByRole('button', { name: 'Graph C, occurrence 3' })).toBeEnabled();
   await page.getByRole('button', { name: 'Graph C, occurrence 3' }).click();
   await page.getByLabel('Chart tempo in beats per minute').fill('240');
-  await page.getByRole('button', { name: 'Play chart' }).click();
+  await page.getByRole('button', { name: 'Play chart', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Graph C, occurrence 1' })).toHaveClass(/journey-playing/);
   await expect(page.getByRole('button', { name: 'Graph C, occurrence 3' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Graph G, occurrence 2' })).toHaveClass(/journey-playing/, { timeout: 3500 });
-  await page.getByRole('button', { name: 'Stop chart' }).click();
+  await page.getByRole('button', { name: 'Stop chart', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Graph G, occurrence 2' })).not.toHaveClass(/journey-playing/);
 });

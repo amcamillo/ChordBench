@@ -24,23 +24,34 @@ main { max-width: 1800px; padding-top: 28px; }
 .panel-toggle > span:first-child { font-size: 18px; line-height: 1; }
 .transport-heading .panel-toggle, .workspace-bar .panel-toggle { background: transparent; border-color: #8093af; color: #eef5ff; }
 .transport-heading .panel-toggle:hover, .workspace-bar .panel-toggle:hover { background: #dff5f5; color: #102346; }
-.workspace { --editor-track: minmax(0, 1fr); --chart-track: minmax(0, 1.15fr); --details-track: minmax(265px, .85fr); display: grid; grid-template-areas: 'graph graph graph' 'editor chart details'; grid-template-columns: var(--editor-track) var(--chart-track) var(--details-track); align-items: start; gap: 1px; background: #647695; border: 1px solid #627593; border-radius: 12px; overflow: hidden; }
-.workspace[data-editor-open=false] { --editor-track: 180px; }
-.workspace[data-chart-open=false] { --chart-track: 180px; }
-.workspace[data-details-open=false] { --details-track: 74px; }
-.graph-region { grid-area: graph; min-width: 0; border: 0; background: #101e39; }
-.editor-panel { grid-area: editor; min-width: 0; border: 0; background: #f4f4fb; }
-.chart-panel { grid-area: chart; min-width: 0; background: #fff; }
-.editor-panel, .chart-panel { align-self: stretch; }
-.learning-panel { grid-area: details; min-width: 0; align-self: stretch; }
+.workspace { display: grid; grid-template-areas: none; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; gap: 12px; border: 0; border-radius: 12px; overflow: visible; }
+.workspace > * { grid-area: auto; grid-column: span 2; min-width: 0; align-self: start; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.workspace > .graph-region { grid-column: 1 / -1; background: #101e39; }
+.editor-panel { background: #f4f4fb; }
+.chart-panel { background: #fff; }
+.learning-panel { min-width: 0; }
+/* Keep DOM/keyboard order. Only consecutive expanded panels share a row. */
+.workspace:is([data-editor-open=false], [data-chart-open=false], [data-details-open=false]) > :not(.graph-region) { grid-column: span 3; }
+.workspace[data-chart-open=false] > :not(.graph-region),
+.workspace[data-editor-open=false][data-details-open=false] > :not(.graph-region),
+.workspace[data-editor-open=false] > .editor-panel,
+.workspace[data-chart-open=false] > .chart-panel,
+.workspace[data-details-open=false] > .learning-panel { grid-column: 1 / -1; }
+.workspace[data-editor-open=false] > .editor-panel,
+.workspace[data-chart-open=false] > .chart-panel { padding: 0; }
+.workspace[data-editor-open=false] .editor-panel > .panel-heading,
+.workspace[data-chart-open=false] .chart-panel > .panel-heading { margin: 0; padding: 14px 20px; align-items: center; }
+.workspace[data-editor-open=false] .source-label { display: none; }
+.workspace .panel-toggle { flex-shrink: 0; }
+.workspace .panel-heading > div:first-child, .workspace-bar > div:first-child { min-width: 0; }
+.workspace .panel-heading h2, .workspace-bar h2 { overflow-wrap: anywhere; }
 .workspace-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 15px 20px; color: #f1f6ff; background: #14243f; }
 .workspace-bar h2 { font-size: 16px; font-weight: 600; }
 .workspace-bar p { margin: 2px 0 0; color: #c5d4e8; font-size: 12px; }
 .graph-bar { border-bottom: 1px solid #40516d; }
 .details-bar { background: rgba(13,29,55,.6); border-bottom: 1px solid #546a86; }
-.workspace[data-details-open=false] .details-bar { min-height: 75px; padding: 12px; justify-content: center; }
-.workspace[data-details-open=false] .details-bar > div, .workspace[data-details-open=false] .details-bar .panel-toggle-text { display: none; }
-.workspace[data-details-open=false] .details-bar .panel-toggle { min-width: 44px; }
+.workspace[data-details-open=false] .details-bar,
+.workspace[data-graph-open=false] .graph-bar { border-bottom: 0; padding: 14px 20px; }
 .panel-heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 5px; }
 .source-label { display: inline-block; margin-top: 4px; }
 .chart-content { display: flex; flex-direction: column; flex: 1; }
@@ -61,12 +72,8 @@ main { max-width: 1800px; padding-top: 28px; }
 .editor-panel .panel-heading, .chart-panel .panel-heading { align-items: flex-start; }
 .chart-footer { margin-top: 20px; }
 @media (max-width: 1199px) {
-  .workspace, .workspace[data-details-open=false] { --editor-track: minmax(0, 1fr); --chart-track: minmax(0, 1.25fr); grid-template-areas: 'graph graph' 'editor chart' 'details details'; grid-template-columns: var(--editor-track) var(--chart-track); }
-  .workspace[data-editor-open=false] { --editor-track: 180px; }
-  .workspace[data-chart-open=false] { --chart-track: 180px; }
-  .learning-panel { grid-area: details; }
-  .workspace[data-details-open=false] .details-bar { justify-content: space-between; padding: 15px 20px; }
-  .workspace[data-details-open=false] .details-bar > div, .workspace[data-details-open=false] .details-bar .panel-toggle-text { display: block; }
+  .workspace > * { grid-column: span 3; }
+  .workspace[data-editor-open=true][data-chart-open=true][data-details-open=true] > .learning-panel { grid-column: 1 / -1; }
 }
 @media (max-width: 767px) {
   main { padding-top: 22px; }

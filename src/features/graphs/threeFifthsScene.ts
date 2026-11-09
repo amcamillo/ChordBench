@@ -1,7 +1,14 @@
 import * as THREE from 'three';
-import { FIFTHS, fifthsOrbitPoint, sharedPitchClasses } from '../../domain/graphs/fifthsTime.ts';
+import { FIFTHS, fifthIndex, fifthsOrbitPoint, sharedPitchClasses } from '../../domain/graphs/fifthsTime.ts';
 import type { TimeChord } from '../../domain/graphs/fifthsTime.ts';
 import { cameraPosition } from '../../domain/graphs/fifthsCamera.ts';
+import { GROOVES, meterFrame, overviewPoint, overviewX, rhythmEvents, type VisualRhythm } from '../../domain/graphs/rhythm.ts';
+import { morphAmount } from '../../domain/graphs/chordMorph.ts';
+import { buildFocusedChord } from './focusedChord.ts';
+import { buildTimingTrack } from './dnaTimingTrack.ts';
+import type { TransitionCandidate } from '../../domain/song/transitions.ts';
+import { spelledMidiName } from '../../domain/instruments/voicings.ts';
+import { buildSongOverview } from './songOverview.ts';
 
 const RADIUS = 2.25, SPACING = 1.45, LAYERS = 10;
 const point = (pitch: number, z: number, radius = RADIUS) => {
@@ -36,10 +43,10 @@ function glowTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas);
 }
 
-function labelSprite(label: string): THREE.Sprite {
+function labelSprite(label: string, fontSize = 26): THREE.Sprite {
   const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 64;
   const context = canvas.getContext('2d')!;
-  context.font = '500 26px Inter, sans-serif'; context.textAlign = 'center'; context.textBaseline = 'middle';
+  context.font = `500 ${fontSize}px Inter, sans-serif`; context.textAlign = 'center'; context.textBaseline = 'middle';
   context.fillStyle = '#273252'; context.shadowColor = '#ffffff'; context.shadowBlur = 7; context.fillText(label, 128, 32);
   const texture = new THREE.CanvasTexture(canvas);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
@@ -52,6 +59,15 @@ export class ThreeFifthsScene {
   private readonly camera = new THREE.PerspectiveCamera(42, 1, .1, 100);
   private readonly orbit = new THREE.Group();
   private readonly data = new THREE.Group();
+  private readonly voiceLayer = new THREE.Group();
+  private track: ReturnType<typeof buildTimingTrack> | null = null;
+  private readonly focusLayer = new THREE.Group();
+  private position = 0;
+  private secondsPerChord = 240 / 90;
+  private morph: ReturnType<typeof buildFocusedChord> | null = null;
+  private morphProgress = 0;
+  private motionProbe: THREE.Mesh | null = null;
+  private anchor = 0;
   private readonly raycaster = new THREE.Raycaster();
   private readonly resize: ResizeObserver;
   private readonly intersection: IntersectionObserver | null;
@@ -61,6 +77,12 @@ export class ThreeFifthsScene {
   private yaw = .15;
   private tilt = .4;
   private zoom = 1;
+  private overview = false;
+  private focus = 0;
+  private count = 0;
+  private cursor: THREE.Line | null = null;
+  private lastChords: TimeChord[] | null = null;
+  private lastRhythm: VisualRhythm | null = null;
   private destroyed = false;
   private readonly onVisibility = () => this.syncLoop();
   private readonly onLost: (event: Event) => void;
@@ -72,7 +94,7 @@ export class ThreeFifthsScene {
     this.scene.fog = new THREE.FogExp2(0xf6f8ff, .025);
     this.scene.add(new THREE.AmbientLight(0xb9d9ff, 1.2));
     const light = new THREE.PointLight(0xc2e8ff, 24, 30); light.position.set(0, 0, 2); this.scene.add(light);
-    this.scene.add(this.orbit); this.orbit.add(this.data);
+    this.scene.add(this.orbit); this.orbit.add(this.data, this.focusLayer, this.voiceLayer);
     const positions: number[] = [];
     for (let i = 0; i < 420; i++) positions.push(((i * 197 + 31) % 997) / 997 * 56 - 28, ((i * 347 + 89) % 991) / 991 * 44 - 22, -((i * 97 + 11) % 997) / 997 * 50 + 7);
     const stars = new THREE.BufferGeometry(); stars.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -96,64 +118,189 @@ export class ThreeFifthsScene {
 
   setView(yaw: number, tilt: number, zoom: number) {
     this.yaw = yaw; this.tilt = tilt; this.zoom = zoom;
-    const position = cameraPosition(this.camera.aspect, yaw, tilt, zoom);
-    this.camera.position.set(position.x, position.y, position.z);
-    this.camera.lookAt(0, 0, -5.4); this.camera.updateMatrixWorld(); this.render();
+    this.updateCamera(); this.render();
   }
 
-  setData(chords: TimeChord[], focus: number, selectedPitch: number | null) {
-    disposeTree(this.data); this.data.clear(); this.noteMeshes = [];
+  private updateCamera() {
+    const { yaw, tilt, zoom } = this;
+    if (this.overview) {
+      const targetX = overviewX(this.position, this.count);
+      const distance = Math.max(8.5, (20 + Math.abs(targetX)) / Math.max(.1, this.camera.aspect)) / Math.tan(21 * Math.PI / 180) / zoom;
+      this.camera.far = Math.max(100, distance * 3); this.camera.updateProjectionMatrix();
+      this.camera.position.set(targetX + Math.sin(yaw * .5) * distance, Math.sin(tilt * .5) * distance, distance);
+      this.camera.lookAt(targetX, 0, 0);
+    } else {
+      const position = cameraPosition(this.camera.aspect, yaw, tilt, zoom);
+      const targetZ = 0;
+      this.camera.position.set(position.x, position.y, position.z + 5.4 + targetZ);
+      this.camera.lookAt(0, 0, targetZ);
+    }
+    this.camera.updateMatrixWorld();
+    const center = new THREE.Vector3(this.overview ? overviewX(this.focus, this.count) : 0, 0, 0).project(this.camera);
+    this.canvas.dataset.focusX = center.x.toFixed(4);
+    this.canvas.dataset.focusY = center.y.toFixed(4);
+    this.updateTimingTrack();
+  }
+
+  setData(chords: TimeChord[], focus: number, selectedPitch: number | null, overview = false, rhythm: VisualRhythm = { groove: GROOVES[0], meter: '4/4' }, timingVisible = true) {
+    if (this.track) { disposeTree(this.track.group); this.scene.remove(this.track.group); }
+    this.track = buildTimingTrack(chords, focus, rhythm, text => labelSprite(text, 48));
+    this.track.group.visible = timingVisible;
+    this.canvas.dataset.timingVisible = String(timingVisible);
+    this.scene.add(this.track.group);
+    disposeTree(this.focusLayer); this.focusLayer.clear(); this.noteMeshes = [];
+    const focused = chords[focus];
+    this.morph = !overview && focused ? buildFocusedChord(this.focusLayer, focused, chords[focus + 1], selectedPitch, labelSprite) : null;
+    this.noteMeshes = this.morph?.meshes ?? [];
+    if (overview && this.overview && this.lastChords === chords && this.lastRhythm === rhythm) {
+      this.focus = focus; this.setPosition(this.playbackPosition?.() ?? focus); return;
+    }
+    if (!overview && !this.overview && this.lastChords === chords && this.lastRhythm === rhythm && focus >= this.anchor && focus < this.anchor + LAYERS - 2) {
+      this.focus = focus; this.setPosition(this.playbackPosition?.() ?? focus); return;
+    }
+    this.lastChords = chords; this.lastRhythm = rhythm;
+    disposeTree(this.data); this.data.clear(); this.motionProbe = null;
+    this.overview = overview; this.focus = focus; this.anchor = focus; this.count = chords.length; this.cursor = null;
+    this.scene.fog = overview ? null : new THREE.FogExp2(0xf6f8ff, .025);
+    this.canvas.dataset.scope = overview ? 'whole' : 'detail';
+    this.canvas.dataset.groove = rhythm.groove.id;
+    this.canvas.dataset.meter = rhythm.meter;
+    this.canvas.dataset.total = String(chords.length);
+    this.setView(this.yaw, this.tilt, this.zoom);
+    if (overview) {
+      this.cursor = buildSongOverview(this.data, chords, rhythm);
+      this.canvas.dataset.rendered = String(chords.length);
+      this.canvas.dataset.first = '1'; this.canvas.dataset.last = String(chords.length);
+      this.setPosition(this.playbackPosition?.() ?? focus); return;
+    }
     const glows = glowTexture();
     const halo = (color: number, scale: number) => {
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glows, color, transparent: true, opacity: .72, blending: THREE.AdditiveBlending, depthWrite: false }));
       sprite.scale.setScalar(scale); return sprite;
     };
     // The central thread marks depth; it does not imply an inferred musical beat.
-    const axis = new THREE.Mesh(new THREE.CylinderGeometry(.025, .055, 21, 12), new THREE.MeshBasicMaterial({ color: 0x7353d8, transparent: true, opacity: .65 }));
-    axis.rotation.x = Math.PI / 2; axis.position.z = -focus * SPACING - 7; this.data.add(axis);
+    const axis = new THREE.Mesh(new THREE.CylinderGeometry(.025, .055, 21, 12), new THREE.MeshBasicMaterial({ color: 0x49358f, depthTest: false, depthWrite: false, fog: false }));
+    axis.renderOrder = 20; axis.rotation.x = Math.PI / 2; axis.position.z = -7; this.data.add(axis);
     const axisGlow = new THREE.Mesh(new THREE.CylinderGeometry(.10, .14, 21, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xb2a2ed, transparent: true, opacity: .08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    axisGlow.rotation.x = Math.PI / 2; axisGlow.position.z = -focus * SPACING - 7; this.data.add(axisGlow);
+    axisGlow.rotation.x = Math.PI / 2; axisGlow.position.z = -7; this.data.add(axisGlow);
 
     // Stable pitch-class lanes, like a curved musical staff, continue through the visible window.
     for (const note of FIFTHS) {
       const coords: THREE.Vector3[] = [];
-      for (let i = 0; i <= 160; i++) coords.push(point(note.pitch, -focus * SPACING + 3 - i * 22 / 160));
+      for (let i = 0; i <= 160; i++) { const z = 3 - i * 22 / 160; const p = point(note.pitch, z - focus * SPACING); p.z = z; coords.push(p); }
       this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords), new THREE.LineBasicMaterial({ color: 0x817cbd, transparent: true, opacity: .32, depthWrite: false })));
-      const label = labelSprite(note.label); label.position.copy(point(note.pitch, -focus * SPACING + .05, RADIUS + .48)); this.data.add(label);
     }
     const start = Math.max(0, focus - 2);
     const visible = chords.slice(start, focus + LAYERS);
+    this.canvas.dataset.rendered = String(visible.length);
+    this.canvas.dataset.first = String(start + 1); this.canvas.dataset.last = String(start + visible.length);
     visible.forEach((chord, index) => {
       const chordIndex = start + index;
-      const z = -chordIndex * SPACING;
-      const chordPoints = chord.notes.map(note => point(note.pitch, z));
+      const z = -(chordIndex - focus) * SPACING;
+      const backgroundPoint = (pitch: number) => { const p = point(pitch, -chordIndex * SPACING); p.z = z; return p; };
+      const ticks: THREE.Vector3[] = [];
+      for (let beat = 0; beat < 4; beat++) {
+        const depth = z - beat / 4 * SPACING, width = beat === 0 ? .24 : .1;
+        ticks.push(new THREE.Vector3(-width, 0, depth), new THREE.Vector3(width, 0, depth));
+      }
+      this.data.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(ticks), new THREE.LineBasicMaterial({ color: 0x49358f, depthTest: false, depthWrite: false, fog: false })));
+      if (rhythm.groove.steps.length) {
+        const frame = meterFrame(rhythm.meter, 3.05).map(p => new THREE.Vector3(p.x, p.y, z));
+        this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(frame), new THREE.LineBasicMaterial({ color: 0xcc631d, transparent: true, opacity: .45 })));
+        const accents: THREE.Vector3[] = [];
+        for (const event of rhythmEvents(rhythm)) {
+          const depth = z - event.fraction * SPACING;
+          accents.push(new THREE.Vector3(3.35, 0, depth), new THREE.Vector3(3.35 + event.strength * .6, 0, depth));
+        }
+        this.data.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(accents), new THREE.LineBasicMaterial({ color: 0xcc631d, transparent: true, opacity: .65 })));
+      }
+      const chordPoints = chord.notes.map(note => backgroundPoint(note.pitch));
       if (chordPoints.length > 1) {
         const outline = chordPoints.length > 2 ? [...chordPoints, chordPoints[0]] : chordPoints;
-        this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(outline), new THREE.LineBasicMaterial({ color: 0x7542d4, transparent: true, opacity: chordIndex === focus ? .8 : .42, depthWrite: false })));
+        this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(outline), new THREE.LineBasicMaterial({ color: 0x7542d4, transparent: true, opacity: .3, depthWrite: false })));
       }
       chord.notes.forEach(note => {
         const isSelected = chordIndex === focus && note.pitch === selectedPitch;
         const color = note.root ? 0xe72f65 : 0x1478d4;
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(note.root ? .115 : .085, 20, 14), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: isSelected ? 1.5 : .75, roughness: .24, metalness: .08 }));
-        mesh.position.copy(point(note.pitch, z)); mesh.userData.pitch = note.pitch;
+        mesh.position.copy(backgroundPoint(note.pitch)); mesh.userData.pitch = note.pitch;
+        if (!this.motionProbe) this.motionProbe = mesh;
         mesh.add(halo(color, isSelected ? 1.15 : note.root ? .9 : .7));
-        if (chordIndex === focus) this.noteMeshes.push(mesh);
         this.data.add(mesh);
       });
       const next = visible[index + 1];
       if (next) for (const pitch of sharedPitchClasses(chord, next)) {
         const coords: THREE.Vector3[] = [];
-        for (let j = 0; j <= 32; j++) coords.push(point(pitch, z - j * SPACING / 32));
+        for (let j = 0; j <= 32; j++) { const p = point(pitch, -chordIndex * SPACING - j * SPACING / 32); p.z = z - j * SPACING / 32; coords.push(p); }
         this.data.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords), new THREE.LineBasicMaterial({ color: 0x087d9f, transparent: true, opacity: .9, depthWrite: false })));
       }
     });
     this.setPosition(this.playbackPosition?.() ?? focus);
   }
 
+
+  private updateTimingTrack() {
+    if (!this.track) return;
+    const distance = 10, height = 2 * distance * Math.tan(21 * Math.PI / 180);
+    const pixel = height / Math.max(1, this.canvas.clientHeight);
+    const scale = pixel * 128 / 9;
+    const x = height * this.camera.aspect / 2 - 12 * pixel - 4.5 * scale;
+    const y = -height / 2 + 12 * pixel + 3.25 * scale;
+    this.track.group.position.copy(new THREE.Vector3(x, y, -distance).applyMatrix4(this.camera.matrixWorld));
+    this.track.group.quaternion.copy(this.camera.quaternion); this.track.group.scale.setScalar(scale);
+    this.track.marker.position.set(-3 + Math.max(0, Math.min(1, this.position - this.focus)) * 6, 1, .02);
+    this.track.group.updateMatrixWorld(true);
+    const railA = new THREE.Vector3(-4.5, -3.25, 0).applyMatrix4(this.track.group.matrixWorld).project(this.camera);
+    const railB = new THREE.Vector3(4.5, 3.25, 0).applyMatrix4(this.track.group.matrixWorld).project(this.camera);
+    this.canvas.dataset.railBounds = JSON.stringify([railA.x, railA.y, railB.x, railB.y]);
+    this.canvas.dataset.timingTrack = 'camera-facing';
+    this.canvas.dataset.timingBeat = (1 + Math.max(0, Math.min(1, this.position - this.focus)) * 4).toFixed(3);
+  }
+
+  setVoiceLeading(candidate: TransitionCandidate | null) {
+    disposeTree(this.voiceLayer); this.voiceLayer.clear();
+    this.canvas.dataset.voicePaths = String(candidate?.movements.length ?? 0);
+    if (!candidate) { this.render(); return; }
+    const voicePoint = (pitch: number, next: boolean) => {
+      if (!this.overview) return point(pitch, next ? -SPACING : 0);
+      const p = overviewPoint(fifthIndex(pitch), this.focus + (next ? 1 : 0), this.count);
+      return new THREE.Vector3(p.x, p.y, p.z);
+    };
+    for (const [index, voice] of candidate.movements.entries()) {
+      const a = voice.from ? voicePoint(voice.from.midi % 12, false) : null;
+      const b = voice.to ? voicePoint(voice.to.midi % 12, true) : null;
+      if (a && b) {
+        const middle = a.clone().lerp(b, .5); middle.multiplyScalar(1.18);
+        const curve = new THREE.QuadraticBezierCurve3(a, middle, b);
+        const material = new THREE.LineBasicMaterial({ color: voice.semitones === 0 ? 0x087d9f : 0x7542d4, depthTest: false, depthWrite: false });
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(24)), material);
+        line.renderOrder = 25; this.voiceLayer.add(line);
+        const arrow = new THREE.Mesh(new THREE.ConeGeometry(.07, .22, 8), new THREE.MeshBasicMaterial({ color: material.color, depthTest: false, depthWrite: false }));
+        arrow.position.copy(curve.getPoint(.72)); arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangent(.72).normalize());
+        arrow.renderOrder = 25; this.voiceLayer.add(arrow);
+      }
+      const text = `${voice.from ? spelledMidiName(voice.from.midi, voice.from.spelling) : '+'} > ${voice.to ? spelledMidiName(voice.to.midi, voice.to.spelling) : '-'}`;
+      const label = labelSprite(text, 30);
+      label.scale.set(2.5, .625, 1);
+      label.position.copy((a ?? b)!.clone().multiplyScalar(1.3)); label.position.z -= index * .07;
+      label.material.depthTest = false; label.renderOrder = 26; this.voiceLayer.add(label);
+    }
+    this.render();
+  }
+
+  setTempo(tempo: number) { this.secondsPerChord = 240 / tempo; }
+
   setPlayback(position: (() => number) | null) { this.playbackPosition = position; this.syncLoop(); }
   private setPosition(position: number) {
-    this.data.position.z = position * SPACING;
+    this.position = position;
+    this.morphProgress = this.morph?.canMorph ? morphAmount(position, this.focus, this.secondsPerChord) : 0;
+    this.morph?.update(this.morphProgress);
+    this.canvas.dataset.morph = this.morphProgress.toFixed(4);
+    this.data.position.z = this.overview ? 0 : (position - this.anchor) * SPACING;
+    if (this.cursor) this.cursor.position.x = overviewX(position, this.count);
     this.canvas.dataset.position = position.toFixed(3);
+    if (this.motionProbe) this.canvas.dataset.backgroundZ = this.motionProbe.getWorldPosition(new THREE.Vector3()).z.toFixed(4);
+    this.updateCamera();
     this.render();
   }
   private syncLoop() {
@@ -165,11 +312,21 @@ export class ThreeFifthsScene {
   private render() { if (!this.destroyed && !document.hidden) this.renderer.render(this.scene, this.camera); }
 
   pick(clientX: number, clientY: number): number | null {
+    if (this.morphProgress > 0) return null;
     const rect = this.canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
     this.scene.updateMatrixWorld(true);
     this.raycaster.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), this.camera);
     return this.raycaster.intersectObjects(this.noteMeshes, false)[0]?.object.userData.pitch ?? null;
+  }
+
+  pickOccurrence(clientX: number, clientY: number): number | null {
+    if (!this.overview || !this.count) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    this.raycaster.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), this.camera);
+    const hit = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
+    if (!hit || hit.x < -17 || hit.x > 18) return null;
+    return Math.max(0, Math.min(this.count - 1, Math.round((hit.x + 16) / 32 * (this.count - 1))));
   }
 
   dispose() {

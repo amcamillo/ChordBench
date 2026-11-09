@@ -11,7 +11,7 @@ test('consolidates repeated chord occurrences and links them back without autopl
   await page.getByRole('button', { name: 'Occurrence 3 · Chart · C' }).click();
   await expect(page.getByRole('button', { name: 'C, occurrence 3', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('Chart / occurrence 3', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Play chart' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Play chart', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'C → G · 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'G → C · 1' })).toBeVisible();
   await page.getByRole('button', { name: 'C → G · 1' }).click();

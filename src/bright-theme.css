@@ -22,7 +22,8 @@ body { background: radial-gradient(ellipse at 8% 0%, #fff1dc, transparent 37%), 
 .transport-intro p, .transport-status { color: #635c6f; }.transport-warning { color: #8a3c16; }
 .primary-button, .external-chart-link { background: #365dce; border-color: #365dce; color: white; }
 .primary-button:hover:not(:disabled), .external-chart-link:hover { background: #2447aa; color: white; }
-.workspace { background: #e0dff0; border-color: #dedbec; box-shadow: 0 22px 65px rgba(69,65,130,.1); }
+.workspace { background: transparent; box-shadow: none; backdrop-filter: none; }
+.workspace > * { box-shadow: 0 5px 20px rgba(69,65,130,.05); }
 .graph-region { background: #f5f3ff; }.editor-panel { background: #f8f8ff; }.chart-panel { background: #fff; }
 .workspace-bar { background: #eeebff; color: #252d54; }.workspace-bar p { color: #5c6482; }
 .graph-bar, .details-bar { border-color: #d5d4ec; }.details-bar { background: #f2efff; }
@@ -68,3 +69,20 @@ body { background: radial-gradient(ellipse at 8% 0%, #fff1dc, transparent 37%), 
   .mobile-tabs button { color: #505a79; }.mobile-tabs button[aria-current=page] { color: #384fbc; border-bottom-color: #4e5ed3; }
   .mobile-tabs button:hover:not(:disabled) { background: #eaf0ff; color: #263e91; }
 }
+
+/* Playback belongs to the readable chart; its primary actions remain discoverable. */
+.chart-panel > .song-transport {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border: 1px solid #c5c7ea;
+  border-left: 3px solid #7263bb;
+  background: #f4f3ff;
+  box-shadow: none;
+  gap: 12px;
+}
+.chart-panel .transport-intro { flex: 1 1 100%; }
+.chart-panel .transport-heading { justify-content: space-between; }
+.chart-panel .transport-heading h2 { display: flex; align-items: center; gap: 9px; font-size: 17px; }
+.chart-panel .transport-heading h2 span { color: #6554aa; font-size: 14px; }
+.chart-panel .transport-controls { width: 100%; }
+.chart-panel .transport-status { margin: 0; }

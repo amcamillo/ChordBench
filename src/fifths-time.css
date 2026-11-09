@@ -62,3 +62,47 @@
   .time-stage-horizon { right: 10px; font-size: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .time-canvas { scroll-behavior: auto; } }
+
+.dna-scope { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+.dna-scope button[aria-pressed=true] { background: #4e5ed3; color: #fff; border-color: #4e5ed3; }
+.dna-scope span { font-size: 13px; color: #505d7c; }
+.dna-rhythm { border: 1px solid #d5d9ef; background: #fffaf2; border-radius: 10px; padding: 16px; margin-bottom: 18px; color: #323a58; }
+.dna-rhythm-fields, .dna-jump { display: flex; flex-wrap: wrap; gap: 12px; }
+.dna-rhythm-fields label, .dna-jump label { flex: 1 1 220px; min-width: 0; color: #505d7c; }
+.dna-rhythm-fields select, .dna-jump select, .dna-jump input { width: 100%; min-height: 44px; margin-top: 6px; }
+.dna-rhythm p { font-size: 13px; line-height: 1.6; margin: 10px 0 0; }
+.dna-rhythm-cell { display: block; width: 100%; max-width: 700px; min-height: 80px; margin-top: 10px; }
+.dna-pattern-text { overflow-wrap: anywhere; }
+.dna-jump { margin-top: 16px; }
+.dna-overview-note { color: #505d7c; font-size: 13px; line-height: 1.6; margin: 0 0 12px; }
+.dna-rhythm-explanation > summary, .dna-view-options > summary { color: #505d7c; }
+.dna-view-options { margin-top: 12px; border-top: 1px solid #d5d9ef; }
+.dna-view-options .time-sliders { margin: 8px 0 16px; }
+.dna-rhythm-summary { color: #505d7c; }
+.dna-chord-lens { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); gap: 16px; align-items: center; padding: 16px; margin-top: 12px; border: 1px solid #d5d9ef; border-radius: 10px; background: #fff; color: #252b4b; }
+.dna-chord-lens svg { width: 100%; }
+.dna-chord-lens p, .dna-chord-lens li { font-size: 14px; line-height: 1.6; }
+.dna-chord-lens button { min-height: 44px; }
+.dna-time-hint { font-size: 12px; color: #505d7c; margin-top: 8px; }
+@media (max-width: 500px) { .dna-chord-lens { grid-template-columns: minmax(0, 1fr); } .dna-chord-lens svg { max-width: 220px; justify-self: center; } }
+.dna-timing-ruler { position: absolute; z-index: 2; left: 16px; right: 16px; bottom: 12px; padding: 8px 12px 4px; background: rgba(255,255,255,.96); border: 1px solid #c8c4e1; border-radius: 8px; pointer-events: none; color: #342965; }
+.dna-timing-ruler > span { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.dna-timing-ruler small { font-size: 11px; }
+.dna-ruler-counts { display: grid; grid-template-columns: repeat(4, 1fr); padding: 4px 2% 0; font-size: 12px; }
+.dna-timing-ruler svg { display: block; width: 100%; height: 24px; margin-top: -8px; }
+.time-stage-horizon { bottom: 94px; }
+.time-render-error { z-index: 3; bottom: 100px; }
+.dna-voice-leading { margin-top: 12px; padding: 12px 16px; border: 1px solid #d5d9ef; border-radius: 8px; background: white; color: #323a58; }
+.dna-voice-leading > label:not(.time-follow) { margin-top: 8px; max-width: 520px; }
+.dna-voice-leading select { min-height: 44px; }
+.dna-voice-leading p, .dna-voice-leading li { font-size: 13px; line-height: 1.55; }
+.time-stage-horizon { display: none; }
+
+/* Playback stays available in the visualization without covering its center. */
+.dna-stage-transport { position: absolute; left: 16px; bottom: 16px; z-index: 2; padding: 8px 10px; border: 1px solid #cbd2ed; border-radius: 9px; background: rgba(250,251,255,.94); color: #29284f; box-shadow: 0 4px 16px rgba(50,60,110,.1); }
+.dna-stage-transport summary { cursor: pointer; font-size: 12px; font-weight: 700; }
+.dna-stage-transport div { display: flex; gap: 6px; margin-top: 8px; }
+.dna-stage-transport button { min-height: 38px; padding: 6px 12px; }
+.dna-timing-toggle { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 13px; font-weight: 600; }
+.dna-timing-ruler { left: auto; width: 150px; max-width: 45%; background: rgba(246,248,255,.9); }
+@media (max-width: 600px) { .dna-stage-transport { bottom: auto; top: 110px; } }

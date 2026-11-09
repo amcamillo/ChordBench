@@ -6,7 +6,11 @@ import { readDraft, saveDraft } from '../infrastructure/storage/drafts.ts';
 import type { Draft } from '../infrastructure/storage/drafts.ts';
 import { workspaceReducer } from './workspace.ts';
 import type { Workspace } from './workspace.ts';
+import { usePlaylist } from '../features/playlist/usePlaylist.ts';
+import { PlaylistManager } from '../features/playlist/PlaylistManager.tsx';
+import { SessionWorkspace } from '../features/session/SessionWorkspace.tsx';
 import { ChartViewer } from '../features/chart/ChartViewer.tsx';
+import { TransitionInspector } from '../features/learning/TransitionInspector.tsx';
 import { ChordInspector } from '../features/learning/ChordInspector.tsx';
 import { InstrumentPanel } from '../features/instruments/InstrumentPanel.tsx';
 import { InstrumentAudio } from '../infrastructure/audio/instrumentAudio.ts';
@@ -20,6 +24,8 @@ import { buildHarmonicMap } from '../domain/graphs/harmonicMap.ts';
 import { HarmonicMap } from '../features/graphs/HarmonicMap.tsx';
 import { ChordStructure } from '../features/graphs/ChordStructure.tsx';
 import { buildFifthsTime } from '../domain/graphs/fifthsTime.ts';
+import { ScoreDNA } from '../features/graphs/ScoreDNA.tsx';
+import { buildScore } from '../domain/graphs/score.ts';
 import { FifthsTimeView } from '../features/graphs/FifthsTimeView.tsx';
 
 const DEMO = '[Verse]\nC       Am      F       G\nFind a little room for a new beginning\n\n[Chorus]\n[C]Take your time, [Am]find the notes\n[F]Let the changes [G]bring you home\n\n[Bridge]\nC/E | Fmaj7 | Dm7 | G7';
@@ -55,8 +61,17 @@ function downloadDraft(draft: Draft) {
 
 export function App() {
   const [state, dispatch] = useReducer(workspaceReducer, undefined, () => initialState());
+  const [session, setSession] = useState(() => {
+    try { const saved = localStorage.getItem('chordbench-session'); if (saved !== null) return saved === 'true'; } catch { /* Optional preference. */ }
+    return matchMedia('(max-width: 1199px), (pointer: coarse)').matches;
+  });
+  function changeSession(value: boolean) {
+    setSession(value);
+    try { localStorage.setItem('chordbench-session', String(value)); } catch { /* Optional preference. */ }
+    window.scrollTo(0, 0);
+  }
   const [tab, setTab] = useState<'chart' | 'graph' | 'learn'>('chart');
-  const [graphView, setGraphView] = useState<'journey' | 'harmonic' | 'structure' | 'time'>('time');
+  const [graphView, setGraphView] = useState<'journey' | 'harmonic' | 'structure' | 'time' | 'score'>(() => { try { return localStorage.getItem('chordbench-dna-view') === 'spatial' ? 'time' : 'score'; } catch { return 'score'; } });
   const [panels, setPanels] = useState<PanelSettings>(initialPanels);
   const [structurePitch, setStructurePitch] = useState<number | null>(null);
   const [recovery, setRecovery] = useState<Draft | null>(null);
@@ -71,7 +86,14 @@ export function App() {
   const [audio] = useState(() => new InstrumentAudio());
   const editor = useRef<HTMLTextAreaElement>(null);
   const stale = state.revision !== state.parsedRevision;
-  const playbackPlan = useMemo(() => buildPlaybackPlan(state.parsed, tonalTheory, state.shift, state.preference, instrument), [state.parsed, state.shift, state.preference, instrument]);
+  const [scoreChoices, setScoreChoices] = useState<Record<string, string>>({});
+  const [guidedPlayback, setGuidedPlayback] = useState(false);
+  const score = useMemo(() => buildScore(state.parsed, tonalTheory, state.shift, state.preference, scoreChoices), [state.parsed, state.shift, state.preference, scoreChoices]);
+  useEffect(() => setScoreChoices({}), [state.source, state.shift, state.preference]);
+  const playbackPlan = useMemo(() => {
+    const plan = buildPlaybackPlan(state.parsed, tonalTheory, state.shift, state.preference, instrument);
+    return guidedPlayback && instrument === 'piano' ? plan.map((event, index) => ({ ...event, pitches: score[index]?.notes.map(note => note.midi) ?? event.pitches })) : plan;
+  }, [state.parsed, state.shift, state.preference, instrument, guidedPlayback, score]);
   const journey = useMemo(() => buildSongJourney(state.parsed, tonalTheory, state.shift, state.preference), [state.parsed, state.shift, state.preference]);
   const harmonicMap = useMemo(() => buildHarmonicMap(state.parsed, tonalTheory, state.shift, state.preference), [state.parsed, state.shift, state.preference]);
   const fifthsTime = useMemo(() => buildFifthsTime(state.parsed, tonalTheory, state.shift, state.preference), [state.parsed, state.shift, state.preference]);
@@ -83,7 +105,13 @@ export function App() {
   const currentDraft: Draft = useMemo(() => ({ schemaVersion: 1, source: state.source, shift: state.shift,
     preference: state.preference, sourceKey: state.sourceKey, choices: state.choices, savedAt: new Date().toISOString() }),
   [state.source, state.shift, state.preference, state.sourceKey, state.choices]);
+  const songSnapshot = useMemo(() => ({ draft: currentDraft, tempo, instrument }), [currentDraft, tempo, instrument]);
+  const playlist = usePlaylist(songSnapshot);
   useEffect(() => { try { localStorage.setItem('chord-workbench-panels-v1', JSON.stringify(panels)); } catch { /* optional presentation preference */ } }, [panels]);
+  function showView(view: 'chart' | 'graph' | 'learn') {
+    setTab(view);
+    requestAnimationFrame(() => document.getElementById('workspace')?.scrollIntoView({ block: 'start' }));
+  }
   function setPanel(name: PanelName, value: boolean) { setPanels(previous => ({ ...previous, [name]: value })); }
 
   useEffect(() => {
@@ -128,6 +156,8 @@ export function App() {
   }, [currentDraft, storageReady, recovery]);
 
   const selected = state.parsed.occurrences.find(item => item.id === state.selectedId);
+  const nextOccurrence = state.parsed.occurrences[state.parsed.occurrences.findIndex(item => item.id === state.selectedId) + 1];
+  const nextResult = selected && nextOccurrence ? tonalTheory.transpose(nextOccurrence.symbol, state.shift, state.preference) : undefined;
   const selectedResult = selected ? tonalTheory.transpose(selected.symbol, state.shift, state.preference) : undefined;
   useEffect(() => { setStructurePitch(null); audio.stop('structure'); }, [selected?.id, state.shift, state.preference, audio]);
   const unresolved = state.parsed.occurrences.filter(item => item.result.status !== 'resolved').length;
@@ -135,6 +165,17 @@ export function App() {
 
   function select(id: string) { dispatch({ type: 'select', id }); }
   function changeInstrument(value: Instrument) { transport.stop('Instrument changed. Ready to play from the beginning.'); audio.stop('preview'); setInstrument(value); }
+  function loadPlaylistSong(id: string) {
+    if (recovery) return;
+    const song = playlist.activate(id);
+    if (!song) return;
+    transport.stop('Song changed. Ready to play from the beginning.'); audio.stop();
+    const draft = song.draft;
+    const parsed = parseChart(draft.source, tonalTheory, undefined, draft.choices);
+    dispatch({ type: 'restore', state: { ...initialState(draft.source), parsed, choices: draft.choices,
+      selectedId: parsed.occurrences[0]?.id ?? null, shift: draft.shift, preference: draft.preference, sourceKey: draft.sourceKey } });
+    setTempo(song.tempo); setTempoText(String(song.tempo)); setInstrument(song.instrument);
+  }
   function restoreDraft() {
     if (!recovery) return;
     const parsed = parseChart(recovery.source, tonalTheory, undefined, recovery.choices);
@@ -159,37 +200,82 @@ export function App() {
     catch { setEditorError('Clipboard access is unavailable. Select and copy text from the editor.'); }
   }
 
+  const scoreView = <ScoreDNA score={score} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId ?? null}
+    stale={stale} audio={audio} onSelect={select} onChoice={(id, candidate) => { select(id); transport.stop('Voicing changed. Ready to play.'); audio.stop(); setScoreChoices(previous => ({ ...previous, [id]: candidate })); }}
+    onAudition={() => transport.stop('Chart stopped for score preview.')} guidedPlayback={guidedPlayback} onGuidedPlayback={value => { const active = transport.activeIndex === null ? undefined : playbackPlan[transport.activeIndex]; if (active) select(active.occurrenceId); setGuidedPlayback(value); }}/>;
+  const sessionPosition = transport.state !== 'stopped' && transport.activeIndex !== null
+    ? transport.activeIndex : state.parsed.occurrences.findIndex(item => item.id === state.selectedId);
+  const sessionOccurrence = state.parsed.occurrences[sessionPosition];
+  const sessionNext = state.parsed.occurrences[sessionPosition + 1];
+  const sessionCurrentResult = sessionOccurrence && tonalTheory.transpose(sessionOccurrence.symbol, state.shift, state.preference);
+  const sessionNextResult = sessionNext && tonalTheory.transpose(sessionNext.symbol, state.shift, state.preference);
+  function browseSessionChord(index: number) {
+    const item = state.parsed.occurrences[index];
+    if (!item) return;
+    if (transport.state !== 'stopped') transport.stop('Chart stopped for chord browsing.');
+    select(item.id);
+  }
+  if (session && !recovery && !storageError) return <SessionWorkspace
+    symbol={sessionCurrentResult?.status === 'resolved' ? sessionCurrentResult.chord.symbol : sessionOccurrence?.symbol ?? 'No chords'}
+    next={sessionNextResult?.status === 'resolved' ? sessionNextResult.chord.symbol : sessionNext?.symbol ?? ''}
+    position={sessionPosition} count={state.parsed.occurrences.length} section={sessionOccurrence?.section ?? 'Chart'}
+    selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId ?? null}
+    playback={transport.state} disabled={stale || !tempoValid} status={/could not|interrupted/.test(transport.message) ? transport.message : `${tempo} BPM / ${transport.state}${transport.activeIndex !== null ? ` / ${playbackPlan[transport.activeIndex]?.symbol ?? ''}` : ''}`}
+    onPrevious={() => browseSessionChord(sessionPosition - 1)}
+    onNext={() => browseSessionChord(sessionPosition + 1)}
+    onPlay={() => void transport.play()} onPause={() => transport.pause()} onStop={() => { if (sessionOccurrence) select(sessionOccurrence.id); transport.stop(); }}
+    onSetup={() => changeSession(false)}
+    songs={playlist.songs} activeSong={playlist.activeId} onSong={loadPlaylistSong} playlistError={playlist.error}
+    chart={<ChartViewer chart={state.parsed} theory={tonalTheory} shift={state.shift} preference={state.preference} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId} stale={stale} onSelect={select}/>}
+    piano={sessionOccurrence && sessionCurrentResult?.status === 'resolved' ? <InstrumentPanel guidedNotes={guidedPlayback && instrument === 'piano' ? score[sessionPosition]?.notes : undefined} chord={sessionCurrentResult.chord} occurrenceId={sessionOccurrence.id} disabled={stale} instrument={instrument} onInstrumentChange={changeInstrument} audio={audio} songPlaying={transport.state === 'playing'} focusPitchClass={structurePitch} onPreview={() => { select(sessionOccurrence.id); transport.stop('Chart playback stopped for instrument preview.'); }}/> : <p>No playable voicing. Choose another chord or open Setup.</p>}
+    dna={scoreView}
+  />;
+
   return <>
     <a className="skip-link" href="#chart-editor" onClick={event => { event.preventDefault(); setTab('chart'); setPanel('editor', true); requestAnimationFrame(() => editor.current?.focus()); }}>Skip to chart editor</a>
     <header className="app-header">
       <a className="brand" href="#"><svg width="34" height="38" viewBox="0 0 34 38" fill="none" aria-hidden="true"><path d="M8 29V8m9 16V4m9 25V12" stroke="currentColor" strokeWidth="2"/><circle cx="8" cy="29" r="5" fill="currentColor"/><circle cx="17" cy="24" r="5" fill="currentColor"/><circle cx="26" cy="29" r="5" fill="currentColor"/></svg><span>Chord<span className="brand-light">Workbench</span></span></a>
       <span className="local-status" role="status"><span className={`status-dot ${storageError ? 'error-dot' : ''}`} aria-hidden="true"/>{saveStatus}</span>
+      <button className="primary-button" onClick={() => changeSession(true)}>Start session</button>
       <button className="quiet-button" onClick={() => downloadDraft(currentDraft)}>Download draft</button>
     </header>
 
     <main>
-      <div className="workspace-intro"><div><h1>Explore the shape of your music.</h1><p>Read a chart, follow its harmony and hear how the chords connect.</p></div><div className="intro-actions"><span className="edition-label">Your listening workspace</span><div className="intro-buttons"><button className="explore-fifths" onClick={() => { setTab('chart'); setPanel('editor', true); requestAnimationFrame(() => editor.current?.focus()); }}>Edit chart</button><button className="explore-fifths" onClick={() => { setGraphView('time'); setTab('graph'); setPanel('graph', true); requestAnimationFrame(() => document.getElementById('graph-workspace')?.scrollIntoView({ block: 'start' })); }}>Explore Song DNA</button></div></div></div>
+      <div className="workspace-intro"><div><h1>Explore the shape of your music.</h1><p>Read a chart, follow its harmony and hear how the chords connect.</p></div><div className="intro-actions"><span className="edition-label">Your listening workspace</span><div className="intro-buttons"><button className="explore-fifths" onClick={() => { setTab('chart'); setPanel('editor', true); requestAnimationFrame(() => editor.current?.focus()); }}>Edit chart</button><button className="explore-fifths" onClick={() => { setGraphView('score'); setTab('graph'); setPanel('graph', true); requestAnimationFrame(() => document.getElementById('graph-workspace')?.scrollIntoView({ block: 'start' })); }}>Explore Song DNA</button></div></div></div>
       {recovery && <section className="notice recovery" aria-label="Draft recovery"><div><strong>A saved draft is waiting.</strong><p>Restore it before editing, or keep this chart and replace the local draft.</p></div><button className="primary-button" onClick={restoreDraft}>Restore draft</button><button onClick={() => { setRecovery(null); setStorageReady(true); }}>Keep current chart</button></section>}
       {storageError && <div className="notice" role="alert"><p>{storageError}</p><button onClick={() => { setStorageReady(true); setStorageError(''); }}>Retry local saving</button></div>}
+      <PlaylistManager playlist={playlist} onLoad={loadPlaylistSong} disabled={!!recovery || stale}/>
+      <nav className="mobile-tabs" aria-label="Workspace views"><button aria-current={tab === 'chart' ? 'page' : undefined} onClick={() => showView('chart')}>Chart</button><button aria-current={tab === 'graph' ? 'page' : undefined} onClick={() => showView('graph')}>Graph</button><button aria-current={tab === 'learn' ? 'page' : undefined} onClick={() => showView('learn')}>Learn{selectedResult?.status === 'resolved' ? ` · ${selectedResult.chord.symbol}` : ''}</button></nav>
+
+      <div id="workspace" className="workspace" data-tab={tab} data-editor-open={panels.editor} data-chart-open={panels.chart} data-details-open={panels.details} data-graph-open={panels.graph}>
+        <div className="graph-region" id="graph-workspace"><div className="workspace-bar graph-bar"><div><h2>Harmony space</h2><p>Choose a view to explore your chart.</p></div><PanelToggle label="visualization" expanded={panels.graph} controls="graph-content" onToggle={() => setPanel('graph', !panels.graph)}/></div><div id="graph-content" hidden={!panels.graph}><nav className="graph-switch" aria-label="Graph views"><button aria-pressed={graphView === 'score'} onClick={() => setGraphView('score')}>Song DNA</button><button aria-pressed={graphView === 'time'} onClick={() => setGraphView('time')}>Spatial DNA</button><button aria-pressed={graphView === 'journey'} onClick={() => setGraphView('journey')}>Song journey</button><button aria-pressed={graphView === 'harmonic'} onClick={() => setGraphView('harmonic')}>Harmonic map</button><button aria-pressed={graphView === 'structure'} onClick={() => setGraphView('structure')}>Chord structure</button></nav>
+          {graphView === 'score' ? scoreView : graphView === 'time' ? <FifthsTimeView tempo={tempo} chords={fifthsTime} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId ?? null} playbackState={transport.state} playbackDisabled={stale || !tempoValid || playbackPlan.length === 0} onTimingCues={transport.setTimingCues} onPlay={() => void transport.play()} onPause={() => transport.pause()} onStop={() => transport.stop()} getPlaybackPosition={transport.getPosition} selectedPitch={structurePitch} stale={stale} onSelect={select} onPitchSelect={setStructurePitch}/> : graphView === 'journey' ? <SongJourney journey={journey} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId ?? null} stale={stale} onSelect={select}/> : graphView === 'harmonic' ? <HarmonicMap map={harmonicMap} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId ?? null} stale={stale} onSelect={select}/> : <ChordStructure chord={selectedResult?.status === 'resolved' ? selectedResult.chord : undefined} occurrenceId={selected?.id} stale={stale} audio={audio} selectedPitchClass={structurePitch} onNoteChange={setStructurePitch} onAudition={() => transport.stop('Chart playback stopped for chord structure audio.')}/>}
+        </div></div>
+        <section className="chart-panel" aria-labelledby="chart-heading">
+          <div className="panel-heading"><div><h2 id="chart-heading">Read & explore</h2><p>{state.parsed.occurrences.length} chord occurrences</p></div><div className="panel-heading-actions"><button className="quiet-button" hidden={!panels.chart} disabled={stale || !state.source.trim()} onClick={copyChart}>{copied ? 'Copied' : 'Copy chart'}</button><PanelToggle label="chart" expanded={panels.chart} controls="chart-content" onToggle={() => setPanel('chart', !panels.chart)}/></div></div>
       <section className="song-transport" aria-label="Chart playback">
-        <div className="transport-intro"><div className="transport-heading"><h2>Play the chart</h2><PanelToggle label="playback settings" expanded={panels.playback} controls="playback-settings" onToggle={() => setPanel('playback', !panels.playback)}/></div><p>Assumed timing: one 4/4 bar per written chord. Repeats are not expanded.</p></div>
-        <div className="transport-controls"><div id="playback-settings" className="playback-settings" hidden={!panels.playback}><label>Instrument<select aria-label="Chart playback instrument" value={instrument} onChange={event => changeInstrument(event.target.value as Instrument)}><option value="piano">Piano</option><option value="guitar">Guitar</option></select></label><label>Tempo <span>(BPM)</span><input aria-label="Chart tempo in beats per minute" type="number" min="40" max="240" step="1" value={tempoText} aria-invalid={!tempoValid} disabled={transport.state !== 'stopped'} onChange={event => { const value = event.target.value; setTempoText(value); const next = event.target.valueAsNumber; if (Number.isInteger(next) && next >= 40 && next <= 240) setTempo(next); }}/></label></div>
+        <div className="transport-intro"><div className="transport-heading"><h2><span aria-hidden="true">&#9654;</span> Play the chart</h2><PanelToggle label="playback settings" expanded={panels.playback} controls="playback-settings" onToggle={() => setPanel('playback', !panels.playback)}/></div><p hidden={!panels.playback}>Assumed timing: one 4/4 bar per written chord. Repeats are not expanded.</p></div>
+        <div className="transport-controls"><div id="playback-settings" className="playback-settings" hidden={!panels.playback}><label>Instrument<select aria-label="Chart playback instrument" value={instrument} onChange={event => changeInstrument(event.target.value as Instrument)}><option value="piano">Piano</option><option value="guitar">Guitar</option></select></label><label>Tempo <span>(BPM)</span><input aria-label="Chart tempo in beats per minute" type="number" inputMode="numeric" min="40" max="240" step="1" value={tempoText} aria-invalid={!tempoValid} disabled={transport.state !== 'stopped'} onChange={event => { const value = event.target.value; setTempoText(value); const next = event.target.valueAsNumber; if (Number.isInteger(next) && next >= 40 && next <= 240) setTempo(next); }}/></label></div>
           {transport.state === 'playing' ? <button onClick={() => transport.pause()}>Pause chart</button> : <button className="primary-button" disabled={stale || !tempoValid || playbackPlan.length === 0} onClick={() => void transport.play()}>{transport.state === 'paused' ? 'Resume chart' : 'Play chart'}</button>}
           <button disabled={transport.state === 'stopped'} onClick={() => transport.stop()}>Stop chart</button></div>
         <p className="transport-status" role="status">{transport.message}{transport.activeIndex !== null && playbackPlan[transport.activeIndex] ? ` Chord ${transport.activeIndex + 1} of ${playbackPlan.length}: ${playbackPlan[transport.activeIndex].symbol}${playbackPlan[transport.activeIndex].warning ? ' (silent)' : ''}.` : ''}</p>
         {!tempoValid && <p className="transport-warning">Enter a tempo from 40 to 240 BPM.</p>}
         {unavailable.length > 0 && <p className="transport-warning">{unavailable.length} chord occurrence{unavailable.length === 1 ? '' : 's'} will be silent: {Array.from(new Set(unavailable.map(event => `${event.symbol} (${event.warning})`))).join(', ')}.</p>}
       </section>
-      <nav className="mobile-tabs" aria-label="Workspace views"><button aria-current={tab === 'chart' ? 'page' : undefined} onClick={() => setTab('chart')}>Chart</button><button aria-current={tab === 'graph' ? 'page' : undefined} onClick={() => setTab('graph')}>Graph</button><button aria-current={tab === 'learn' ? 'page' : undefined} onClick={() => setTab('learn')}>Learn{selectedResult?.status === 'resolved' ? ` · ${selectedResult.chord.symbol}` : ''}</button></nav>
-
-      <div className="workspace" data-tab={tab} data-editor-open={panels.editor} data-chart-open={panels.chart} data-details-open={panels.details} data-graph-open={panels.graph}>
-        <div className="graph-region" id="graph-workspace"><div className="workspace-bar graph-bar"><div><h2>Harmony space</h2><p>Choose a view to explore your chart.</p></div><PanelToggle label="visualization" expanded={panels.graph} controls="graph-content" onToggle={() => setPanel('graph', !panels.graph)}/></div><div id="graph-content" hidden={!panels.graph}><nav className="graph-switch" aria-label="Graph views"><button aria-pressed={graphView === 'time'} onClick={() => setGraphView('time')}>Song DNA</button><button aria-pressed={graphView === 'journey'} onClick={() => setGraphView('journey')}>Song journey</button><button aria-pressed={graphView === 'harmonic'} onClick={() => setGraphView('harmonic')}>Harmonic map</button><button aria-pressed={graphView === 'structure'} onClick={() => setGraphView('structure')}>Chord structure</button></nav>
-          {graphView === 'time' ? <FifthsTimeView chords={fifthsTime} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId ?? null} playbackState={transport.state} getPlaybackPosition={transport.getPosition} selectedPitch={structurePitch} stale={stale} onSelect={select} onPitchSelect={setStructurePitch}/> : graphView === 'journey' ? <SongJourney journey={journey} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId ?? null} stale={stale} onSelect={select}/> : graphView === 'harmonic' ? <HarmonicMap map={harmonicMap} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId ?? null} stale={stale} onSelect={select}/> : <ChordStructure chord={selectedResult?.status === 'resolved' ? selectedResult.chord : undefined} occurrenceId={selected?.id} stale={stale} audio={audio} selectedPitchClass={structurePitch} onNoteChange={setStructurePitch} onAudition={() => transport.stop('Chart playback stopped for chord structure audio.')}/>}
-        </div></div>
+          <div id="chart-content" className="chart-content" hidden={!panels.chart}>
+          <fieldset className="transpose-controls" disabled={stale}><legend>Transpose</legend><div className="shift-control"><button aria-label="Transpose down one semitone" disabled={state.shift <= -11} onClick={() => dispatch({ type: 'shift', value: state.shift - 1 })}>−</button><output aria-live="polite">{state.shift > 0 ? '+' : ''}{state.shift}<small>semitones</small></output><button aria-label="Transpose up one semitone" disabled={state.shift >= 11} onClick={() => dispatch({ type: 'shift', value: state.shift + 1 })}>+</button></div><label className="spelling-control">Note spelling<select value={state.preference} onChange={event => dispatch({ type: 'preference', value: event.target.value as AccidentalPreference })}><option value="preserve">Follow source</option><option value="sharps">Prefer sharps</option><option value="flats">Prefer flats</option></select></label><button className="reset-button" disabled={state.shift === 0 && state.preference === 'preserve'} onClick={() => { dispatch({ type: 'shift', value: 0 }); dispatch({ type: 'preference', value: 'preserve' }); }}>Reset</button></fieldset>
+          <details className="key-controls"><summary>{state.sourceKey ? `Manual tonic: ${state.sourceKey} → ${targetTonic}` : 'Key unknown · choose a tonic if you know it'}</summary><div><label>Source tonic<select value={state.sourceKey} onChange={event => dispatch({ type: 'key', value: event.target.value })}><option value="">Unknown</option>{TONICS.map(([name]) => <option key={name}>{name}</option>)}</select></label><label>Target tonic<select disabled={!state.sourceKey || stale} value={targetTonic} onChange={event => { const source = TONICS.find(([name]) => name === state.sourceKey)![1]; const target = TONICS.find(([name]) => name === event.target.value)![1]; dispatch({ type: 'shift', value: (target - source + 12) % 12 }); dispatch({ type: 'preference', value: event.target.value.includes('b') || event.target.value === 'F' ? 'flats' : 'sharps' }); }}><option value="">Choose source first</option>{TONICS.map(([name]) => <option key={name}>{name}</option>)}</select></label></div><p>This is your tonic choice, not an inferred key or mode.</p></details>
+          {state.shift !== 0 && <p className="projection-label">Transposed view. Your original text is unchanged.{unresolved > 0 && ` ${unresolved} unresolved symbol(s) remain as written.`}</p>}
+          {stale && <p role="status" className="projection-label">Updating chart… showing the previous revision.</p>}
+          <ChartViewer chart={state.parsed} theory={tonalTheory} shift={state.shift} preference={state.preference} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId} stale={stale} onSelect={select}/>
+          <div className="chart-footer"><span>Tap a chord, then open Learn to hear its notes.</span><span>No timing assumed</span></div>
+          {state.notice && <p role="status" className="projection-label">{state.notice}</p>}
+          </div>
+        </section>
         <section className="editor-panel" aria-labelledby="editor-heading">
           <div className="panel-heading"><div><h2 id="editor-heading">Your chart</h2><span className="source-label">Original</span></div><PanelToggle label="editor" expanded={panels.editor} controls="editor-content" onToggle={() => setPanel('editor', !panels.editor)}/></div>
           <div id="editor-content" hidden={!panels.editor}>
-          <ChartImport theory={tonalTheory} recoveryPending={!!recovery} onImport={source => { transport.stop('Chart imported. Ready to play from the beginning.'); audio.stop(); dispatch({ type: 'restore', state: initialState(source) }); }}/>
+          <ChartImport theory={tonalTheory} recoveryPending={!!recovery} onImport={source => { playlist.detach(); transport.stop('Chart imported. Ready to play from the beginning.'); audio.stop(); dispatch({ type: 'restore', state: initialState(source) }); }}/>
           <label htmlFor="chart-editor">Chords and lyrics</label>
           <textarea ref={editor} id="chart-editor" value={state.source} spellCheck={false} aria-describedby="editor-hint" aria-invalid={!!editorError}
             onChange={event => { if (event.target.value.length > MAX_SOURCE_LENGTH) { setEditorError('That chart is too large. Split it into sections under 500,000 characters.'); return; } setEditorError(''); dispatch({ type: 'edit', source: event.target.value }); }} />
@@ -203,19 +289,7 @@ export function App() {
           </div>
         </section>
 
-        <section className="chart-panel" aria-labelledby="chart-heading">
-          <div className="panel-heading"><div><h2 id="chart-heading">Read & explore</h2><p>{state.parsed.occurrences.length} chord occurrences</p></div><div className="panel-heading-actions"><button className="quiet-button" hidden={!panels.chart} disabled={stale || !state.source.trim()} onClick={copyChart}>{copied ? 'Copied' : 'Copy chart'}</button><PanelToggle label="chart" expanded={panels.chart} controls="chart-content" onToggle={() => setPanel('chart', !panels.chart)}/></div></div>
-          <div id="chart-content" className="chart-content" hidden={!panels.chart}>
-          <fieldset className="transpose-controls" disabled={stale}><legend>Transpose</legend><div className="shift-control"><button aria-label="Transpose down one semitone" disabled={state.shift <= -11} onClick={() => dispatch({ type: 'shift', value: state.shift - 1 })}>−</button><output aria-live="polite">{state.shift > 0 ? '+' : ''}{state.shift}<small>semitones</small></output><button aria-label="Transpose up one semitone" disabled={state.shift >= 11} onClick={() => dispatch({ type: 'shift', value: state.shift + 1 })}>+</button></div><label className="spelling-control">Note spelling<select value={state.preference} onChange={event => dispatch({ type: 'preference', value: event.target.value as AccidentalPreference })}><option value="preserve">Follow source</option><option value="sharps">Prefer sharps</option><option value="flats">Prefer flats</option></select></label><button className="reset-button" disabled={state.shift === 0 && state.preference === 'preserve'} onClick={() => { dispatch({ type: 'shift', value: 0 }); dispatch({ type: 'preference', value: 'preserve' }); }}>Reset</button></fieldset>
-          <details className="key-controls"><summary>{state.sourceKey ? `Manual tonic: ${state.sourceKey} → ${targetTonic}` : 'Key unknown · choose a tonic if you know it'}</summary><div><label>Source tonic<select value={state.sourceKey} onChange={event => dispatch({ type: 'key', value: event.target.value })}><option value="">Unknown</option>{TONICS.map(([name]) => <option key={name}>{name}</option>)}</select></label><label>Target tonic<select disabled={!state.sourceKey || stale} value={targetTonic} onChange={event => { const source = TONICS.find(([name]) => name === state.sourceKey)![1]; const target = TONICS.find(([name]) => name === event.target.value)![1]; dispatch({ type: 'shift', value: (target - source + 12) % 12 }); dispatch({ type: 'preference', value: event.target.value.includes('b') || event.target.value === 'F' ? 'flats' : 'sharps' }); }}><option value="">Choose source first</option>{TONICS.map(([name]) => <option key={name}>{name}</option>)}</select></label></div><p>This is your tonic choice, not an inferred key or mode.</p></details>
-          {state.shift !== 0 && <p className="projection-label">Transposed view. Your original text is unchanged.{unresolved > 0 && ` ${unresolved} unresolved symbol(s) remain as written.`}</p>}
-          {stale && <p role="status" className="projection-label">Updating chart… showing the previous revision.</p>}
-          <ChartViewer chart={state.parsed} theory={tonalTheory} shift={state.shift} preference={state.preference} selectedId={state.selectedId} playingId={transport.activeIndex === null ? null : playbackPlan[transport.activeIndex]?.occurrenceId} stale={stale} onSelect={select}/>
-          <div className="chart-footer"><span>Select any chord to see its notes.</span><span>No timing assumed</span></div>
-          {state.notice && <p role="status" className="projection-label">{state.notice}</p>}
-          </div>
-        </section>
-        <div className="learning-panel"><div className="workspace-bar details-bar"><div><h2>Chord details</h2><p>{selectedResult?.status === 'resolved' ? selectedResult.chord.symbol : 'Select a chord'}</p></div><PanelToggle label="chord details" expanded={panels.details} controls="details-content" onToggle={() => setPanel('details', !panels.details)}/></div><div id="details-content" hidden={!panels.details}><ChordInspector occurrence={selected} result={selectedResult} shift={state.shift}/>{selected && selectedResult?.status === 'resolved' && <InstrumentPanel chord={selectedResult.chord} occurrenceId={selected.id} disabled={stale} instrument={instrument} onInstrumentChange={changeInstrument} audio={audio} songPlaying={transport.state === 'playing'} focusPitchClass={structurePitch} onPreview={() => transport.stop('Chart playback stopped for instrument preview.')}/>}<button className="back-to-chart" onClick={() => setTab('chart')}>Back to chart</button></div></div>
+        <div className="learning-panel"><div className="workspace-bar details-bar"><div><h2>Chord details</h2><p>{selectedResult?.status === 'resolved' ? selectedResult.chord.symbol : 'Select a chord'}</p></div><PanelToggle label="chord details" expanded={panels.details} controls="details-content" onToggle={() => setPanel('details', !panels.details)}/></div><div id="details-content" hidden={!panels.details}><ChordInspector occurrence={selected} result={selectedResult} shift={state.shift}/>{selected && selectedResult?.status === 'resolved' && <InstrumentPanel guidedNotes={guidedPlayback && instrument === 'piano' ? score.find(item => item.id === selected.id)?.notes : undefined} chord={selectedResult.chord} occurrenceId={selected.id} disabled={stale} instrument={instrument} onInstrumentChange={changeInstrument} audio={audio} songPlaying={transport.state === 'playing'} focusPitchClass={structurePitch} onPreview={() => transport.stop('Chart playback stopped for instrument preview.')}/>}<TransitionInspector key={`${selected?.id}-${selected?.symbol}-${nextOccurrence?.id}-${nextOccurrence?.symbol}-${state.shift}-${state.preference}`} from={selectedResult?.status === 'resolved' ? selectedResult.chord : undefined} to={nextResult?.status === 'resolved' ? nextResult.chord : undefined} hasNext={!!selected && !!nextOccurrence} disabled={stale} audio={audio} onAudition={() => transport.stop('Chart playback stopped for transition preview.')}/><button className="back-to-chart" onClick={() => showView('chart')}>Back to chart</button></div></div>
       </div>
       <footer className="workspace-footer"><p>Your chart stays in this browser. Download a draft to keep a separate copy.</p><details><summary>About this first build</summary><p>Chart parsing, song journey, harmonic map, chord notes, transposition, simulated instruments, assumed-timing chart playback and local draft recovery are available. The rhythm–pitch lab is a later increment. Draft downloads are backups of the editor; importing them is not available yet.</p></details></footer>
     </main>

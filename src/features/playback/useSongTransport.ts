@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SongEvent } from '../../domain/song/playbackPlan.ts';
 import type { Instrument, InstrumentAudio } from '../../infrastructure/audio/instrumentAudio.ts';
+import { rhythmEvents, type VisualRhythm } from '../../domain/graphs/rhythm.ts';
 
 export function useSongTransport(plan: SongEvent[], tempo: number, instrument: Instrument, audio: InstrumentAudio) {
   const [state, setState] = useState<'stopped' | 'playing' | 'paused'>('stopped');
@@ -10,6 +11,13 @@ export function useSongTransport(plan: SongEvent[], tempo: number, instrument: I
   const generation = useRef(0);
   const position = useRef(0);
   const origin = useRef(0);
+  const cues = useRef<{ enabled: boolean; rhythm: VisualRhythm } | null>(null);
+  const cueCursor = useRef(0);
+  const setTimingCues = useCallback((enabled: boolean, rhythm: VisualRhythm) => {
+    cues.current = { enabled, rhythm };
+    audio.stopBeats();
+    cueCursor.current = audio.currentTime;
+  }, [audio]);
   const barSeconds = 240 / tempo;
   const length = plan.length * barSeconds;
 
@@ -37,6 +45,7 @@ export function useSongTransport(plan: SongEvent[], tempo: number, instrument: I
       if (start === null || generation.current !== current) return;
       const from = Math.min(position.current, Math.max(0, length - .001));
       origin.current = start - from;
+      cueCursor.current = start - .001;
       let next = Math.floor(from / barSeconds);
       setState('playing'); setMessage('Playing chart with assumed timing.');
       const tick = () => {
@@ -49,6 +58,17 @@ export function useSongTransport(plan: SongEvent[], tempo: number, instrument: I
         const elapsed = Math.max(0, now - origin.current);
         if (elapsed >= length) { stop('Chart finished. Ready to play again.'); return; }
         setActiveIndex(Math.min(plan.length - 1, Math.floor(elapsed / barSeconds)));
+        if (cues.current?.enabled) {
+          const events = rhythmEvents(cues.current.rhythm).filter(event => event.strength >= .75);
+          const accents = events.length ? events : [{ fraction: 0, strength: 1 }];
+          const startBar = Math.max(0, Math.floor((cueCursor.current - origin.current) / barSeconds));
+          const endBar = Math.min(plan.length - 1, Math.floor((now + .1 - origin.current) / barSeconds));
+          for (let bar = startBar; bar <= endBar; bar++) for (const accent of accents) {
+            const when = origin.current + (bar + accent.fraction) * barSeconds;
+            if (when > cueCursor.current && when >= now && when <= now + .1) audio.scheduleBeat(when, accent.strength);
+          }
+          cueCursor.current = now + .1;
+        }
         while (next < plan.length && origin.current + next * barSeconds <= now + .2) {
           // If the main thread stalls, never sound already-expired chords at once.
           if (origin.current + (next + 1) * barSeconds <= now) { next++; continue; }
@@ -78,5 +98,5 @@ export function useSongTransport(plan: SongEvent[], tempo: number, instrument: I
     const seconds = state === 'playing' ? audio.currentTime - origin.current : position.current;
     return Math.max(0, Math.min(plan.length, seconds / barSeconds));
   }, [state, audio, plan.length, barSeconds]);
-  return { state, activeIndex, message, play, pause, stop, getPosition };
+  return { state, activeIndex, message, play, pause, stop, getPosition, setTimingCues };
 }
