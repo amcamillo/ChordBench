@@ -1,3 +1,4 @@
+import { useT } from '../../i18n/Language.tsx';
 ﻿import { useEffect, useState, type RefObject } from 'react';
 import { CHROMATIC } from '../../domain/graphs/fifthsTime.ts';
 import { noteColor, unambiguousPitch } from '../../domain/harmony/noteColor.ts';
@@ -40,6 +41,7 @@ function placeLabels(rails: Rail[], width: number, height: number): LabelPositio
 }
 
 export function RailLabels({ canvas, scene, current, next, notes, nextNotes, playing, yaw, tilt, zoom, rendererStatus }: Props) {
+  const t = useT();
   const [positions, setPositions] = useState<LabelPosition[]>([]);
   useEffect(() => {
     const element = canvas.current, stage = element?.parentElement;
@@ -62,13 +64,13 @@ export function RailLabels({ canvas, scene, current, next, notes, nextNotes, pla
     const timer = playing ? window.setInterval(measure, 120) : undefined;
     return () => { cancelAnimationFrame(frame); observer.disconnect(); if (timer) clearInterval(timer); };
   }, [canvas, scene, current, next, playing, yaw, tilt, zoom, rendererStatus]);
-  return <div className="rail-labels" role="list" aria-label="Pitch-class rail labels">
+  return <div className="rail-labels" role="list" aria-label={t("Pitch-class rail labels")}>
     {positions.map(position => {
       const pitch = CHROMATIC[position.pitch];
       const midi = unambiguousPitch(position.kind === 'current' ? notes : nextNotes, position.pitch);
       const chord = position.kind === 'current' ? current : next;
       const spelling = chord?.notes.find(note => note.pitch === position.pitch)?.spelling ?? pitch.label;
-      return <div role="listitem" className={`rail-label ${position.kind === 'next' ? 'rail-label-next' : 'rail-label-current'}`} key={position.pitch} data-pitch={position.pitch} data-kind={position.kind} title={`${spelling}, ${position.kind} chord; octaves share this rail`} style={{ left: position.x, top: position.y }}>
+      return <div role="listitem" className={`rail-label ${position.kind === 'next' ? 'rail-label-next' : 'rail-label-current'}`} key={position.pitch} data-pitch={position.pitch} data-kind={position.kind} title={`${spelling}, ${t(position.kind === 'current' ? 'current chord' : 'next chord')}; ${t('octaves share this rail')}`} style={{ left: position.x, top: position.y }}>
         <i aria-hidden="true" style={{ background: noteColor(midi) }}/><span>{spelling}</span>
       </div>;
     })}

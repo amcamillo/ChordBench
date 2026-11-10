@@ -1,0 +1,66 @@
+﻿import { test, expect } from '@playwright/test';
+test.use({ hasTouch: true, storageState: { cookies: [], origins: [] } });
+test('Portuguese language applies to the session and setup, persists, and preserves the chart', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 740 });
+  await page.goto('/');
+  await page.getByLabel('Language / Idioma').selectOption('pt-BR');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR');
+  await expect(page.getByRole('button', { name: 'Configurar', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tocar', exact: true })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Telas da sessão' }).getByRole('button', { name: 'DNA da música' }).tap();
+  await expect(page.getByRole('button', { name: 'Ver todo o DNA da música' })).toBeVisible();
+  await page.getByRole('button', { name: 'Ver todo o DNA da música' }).tap();
+  await expect(page.getByRole('button', { name: 'Voltar ao acorde' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ampliar' })).toBeVisible();
+  await page.getByRole('button', { name: 'Configurar', exact: true }).tap();
+  const editor = page.getByLabel('Acordes e letra');
+  const source = '[Verse]\nC | Am\nHello, coração!';
+  await editor.fill(source);
+  await expect.poll(() => page.evaluate(() => new Promise<string | null>((resolve, reject) => {
+    const request = indexedDB.open('chord-workbench', 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction('drafts', 'readonly');
+      const read = transaction.objectStore('drafts').get('current');
+      transaction.oncomplete = () => { db.close(); resolve(read.result?.source ?? null); };
+      transaction.onerror = () => { db.close(); reject(transaction.error); };
+    };
+  }))).toBe(source);
+  await expect(page.getByRole('button', { name: 'Iniciar sessão' })).toBeVisible();
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR');
+  await page.getByRole('button', { name: 'Restaurar rascunho' }).click();
+  await expect(editor).toHaveValue(source);
+  await page.getByLabel('Language / Idioma').selectOption('en');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('button', { name: 'Start session' })).toBeVisible();
+  await expect(page.getByLabel('Chords and lyrics')).toHaveValue(source);
+});
+
+test('Portuguese playing and score controls fit a small phone', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 667 });
+  await page.goto('/');
+  await page.getByLabel('Language / Idioma').selectOption('pt-BR');
+  await page.getByRole('navigation', { name: 'Telas da sessão' }).getByRole('button', { name: 'Instrumento' }).tap();
+  await expect(page.getByRole('button', { name: 'Tocar acorde' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Piano C4, nota do acorde/ })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Telas da sessão' }).getByRole('button', { name: 'DNA da música' }).tap();
+  await page.getByRole('button', { name: 'Opções 3D' }).tap();
+  await expect(page.getByLabel('Guia de tempo e batidas')).toBeVisible();
+  await expect(page.getByRole('dialog').getByText(/Vermelho indica notas mais graves/)).toBeVisible();
+  await page.getByRole('button', { name: 'Fechar', exact: true }).tap();
+  await page.getByRole('button', { name: 'Ver todo o DNA da música' }).tap();
+  await expect(page.getByRole('button', { name: 'Ampliar' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+  await page.getByRole('button', { name: 'Voltar ao acorde' }).tap();
+  await page.getByRole('button', { name: 'Partitura', exact: true }).tap();
+  await expect(page.getByRole('button', { name: 'Ouvir acorde' })).toBeVisible();
+  await page.getByRole('button', { name: 'Opções da partitura' }).tap();
+  await expect(page.getByRole('button', { name: 'Como ler a partitura' })).toBeVisible();
+  await page.getByRole('button', { name: 'Como ler a partitura' }).tap();
+  await expect(page.getByText('Altura: linhas, espaços e claves')).toBeVisible();
+  await page.getByRole('button', { name: 'Fechar', exact: true }).tap();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+  await page.screenshot({ path: 'test-results/language-pt-session.png' });
+});

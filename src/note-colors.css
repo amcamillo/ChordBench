@@ -48,3 +48,11 @@
 .time-stage.is-whole-song .time-canvas { touch-action: none; }
 .dna-orbit-controls { position: absolute; z-index: 4; right: 8px; top: 8px; display: flex; gap: 4px; }
 .dna-orbit-controls button { min-width: 44px; min-height: 44px; padding: 6px 10px; }
+
+.language-toggle { min-height: 44px; width: 78px; flex: none; padding: 4px; font-size: 13px; }
+.session-header > h1, .session-header > .session-song { min-width: 0; flex: 1; }
+.session-header .session-song select { width: 100%; }
+.session-header { gap: 6px; }
+@media (max-width: 360px) {
+  .session-tabs button { min-width: 0; padding-inline: 3px; font-size: 14px; }
+}

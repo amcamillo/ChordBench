@@ -1,3 +1,5 @@
+import { useT } from '../../i18n/Language.tsx';
+import { T } from '../../i18n/Language.tsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { HarmonicEdge, HarmonicMap as MapData, HarmonicNode, MapOccurrence } from '../../domain/graphs/harmonicMap.ts';
 
@@ -46,6 +48,7 @@ function OccurrenceButton({ item, stale, onSelect, label }: { item: MapOccurrenc
 }
 
 export function HarmonicMap({ map, selectedId, playingId, stale, onSelect }: Props) {
+  const t = useT();
   const [nodeId, setNodeId] = useState<string | null>(null);
   const [edgeKey, setEdgeKey] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
@@ -60,23 +63,23 @@ export function HarmonicMap({ map, selectedId, playingId, stale, onSelect }: Pro
   const selectedEdge = map.edges.find(edge => JSON.stringify([edge.from, edge.to]) === edgeKey);
   const symbols = new Map(map.nodes.map(node => [node.id, node.symbol]));
   return <section className="journey-panel harmonic-panel" aria-labelledby="harmonic-heading">
-    <div className="journey-heading"><div><h2 id="harmonic-heading">Harmonic map</h2><p>Repeated chord identities share a node. Arrows show observed transitions.</p></div><span className="journey-count">{map.nodes.length} distinct chords</span></div>
+    <div className="journey-heading"><div><h2 id="harmonic-heading"><T text={"Harmonic map"}/></h2><p><T text={"Repeated chord identities share a node. Arrows show observed transitions."}/></p></div><span className="journey-count">{map.nodes.length} distinct chords</span></div>
     {map.nodes.length > 0 ? <>
       <p className="journey-help">The number and width of each arrow show its count, not harmonic strength. Select a chord, then choose an occurrence. Use the lists below to choose transitions.</p>
       {map.nodes.length <= MAX_DIAGRAM_NODES ? <>
-        <div className="journey-toolbar" role="group" aria-label="Harmonic map zoom controls"><button aria-label="Zoom harmonic map out" onClick={() => setScale(value => Math.max(.5, Math.round((value - .25) * 100) / 100))}>−</button><output aria-label="Harmonic map zoom">{Math.round(scale * 100)}%</output><button aria-label="Zoom harmonic map in" onClick={() => setScale(value => Math.min(1.5, Math.round((value + .25) * 100) / 100))}>+</button><button onClick={() => setScale(Math.max(.5, Math.min(1, ((viewport.current?.clientWidth ?? dimensions.width) - 28) / dimensions.width)))}>Fit map width</button><button onClick={() => setScale(1)}>Reset map zoom</button></div>
-        <p className="journey-help">Scroll within the map to explore. The chord and transition lists remain available at full size.</p>
+        <div className="journey-toolbar" role="group" aria-label="Harmonic map zoom controls"><button aria-label="Zoom harmonic map out" onClick={() => setScale(value => Math.max(.5, Math.round((value - .25) * 100) / 100))}>−</button><output aria-label="Harmonic map zoom">{Math.round(scale * 100)}%</output><button aria-label="Zoom harmonic map in" onClick={() => setScale(value => Math.min(1.5, Math.round((value + .25) * 100) / 100))}>+</button><button onClick={() => setScale(Math.max(.5, Math.min(1, ((viewport.current?.clientWidth ?? dimensions.width) - 28) / dimensions.width)))}><T text={"Fit map width"}/></button><button onClick={() => setScale(1)}><T text={"Reset map zoom"}/></button></div>
+        <p className="journey-help"><T text={"Scroll within the map to explore. The chord and transition lists remain available at full size."}/></p>
         <div className="journey-viewport harmonic-viewport" ref={viewport} role="region" tabIndex={0} aria-label="Harmonic map, scroll to explore" aria-busy={stale}>
           <div className="journey-scaled-space" style={{ width: dimensions.width * scale, height: dimensions.height * scale }}><div className="journey-scale" style={{ transform: `scale(${scale})` }}><Diagram map={map} selectedNodeId={nodeId} playingId={playingId} stale={stale} onNode={id => { setNodeId(id); setEdgeKey(null); }}/></div></div>
         </div>
       </> : <p className="harmonic-notice">This chart has more than {MAX_DIAGRAM_NODES} distinct chords. Use the chord and transition lists below to explore all of them.</p>}
       <div className="harmonic-content">
-        <section aria-label="Chord identities"><h3>Chords</h3><div className="harmonic-buttons">{map.nodes.map(node => <button key={node.id} aria-pressed={nodeId === node.id} disabled={stale} onClick={() => { setNodeId(node.id); setEdgeKey(null); }}>{node.symbol} <span>· {node.occurrences.length}</span></button>)}</div></section>
-        {selectedNode && <section className="harmonic-detail" aria-label={`Occurrences of ${selectedNode.symbol}`}><h3>{selectedNode.symbol} · {selectedNode.occurrences.length} occurrence{selectedNode.occurrences.length === 1 ? '' : 's'}</h3><p>Written as: {selectedNode.sourceSymbols.join(', ')}</p><div className="harmonic-buttons">{selectedNode.occurrences.map(item => <OccurrenceButton key={item.id} item={item} stale={stale} onSelect={onSelect}/>)}</div></section>}
-        <section aria-label="Observed transitions"><h3>Observed transitions</h3>{map.edges.length ? <div className="harmonic-buttons">{map.edges.map(edge => { const key = JSON.stringify([edge.from, edge.to]); return <button key={key} disabled={stale} aria-pressed={edgeKey === key} onClick={() => { setEdgeKey(key); setNodeId(null); }}>{symbols.get(edge.from)} → {symbols.get(edge.to)} · {edge.occurrences.length}</button>; })}</div> : <p>No resolved adjacent chords to compare.</p>}</section>
-        {selectedEdge && <section className="harmonic-detail" aria-label="Transition occurrences"><h3>{symbols.get(selectedEdge.from)} → {symbols.get(selectedEdge.to)}</h3><p>Choose an occurrence in the written transition.</p>{selectedEdge.occurrences.map(pair => <div className="harmonic-pair" key={`${pair.from.id}-${pair.to.id}`}><OccurrenceButton item={pair.from} label={`From ${pair.from.order + 1}`} stale={stale} onSelect={onSelect}/><span aria-hidden="true">→</span><OccurrenceButton item={pair.to} label={`To ${pair.to.order + 1}`} stale={stale} onSelect={onSelect}/></div>)}</section>}
+        <section aria-label={t("Chord identities")}><h3><T text={"Chords"}/></h3><div className="harmonic-buttons">{map.nodes.map(node => <button key={node.id} aria-pressed={nodeId === node.id} disabled={stale} onClick={() => { setNodeId(node.id); setEdgeKey(null); }}>{node.symbol} <span>· {node.occurrences.length}</span></button>)}</div></section>
+        {selectedNode && <section className="harmonic-detail" aria-label={`Occurrences of ${selectedNode.symbol}`}><h3>{selectedNode.symbol} · {selectedNode.occurrences.length} occurrence{selectedNode.occurrences.length === 1 ? '' : 's'}</h3><p><T text={"Written as:"}/> {selectedNode.sourceSymbols.join(', ')}</p><div className="harmonic-buttons">{selectedNode.occurrences.map(item => <OccurrenceButton key={item.id} item={item} stale={stale} onSelect={onSelect}/>)}</div></section>}
+        <section aria-label={t("Observed transitions")}><h3><T text={"Observed transitions"}/></h3>{map.edges.length ? <div className="harmonic-buttons">{map.edges.map(edge => { const key = JSON.stringify([edge.from, edge.to]); return <button key={key} disabled={stale} aria-pressed={edgeKey === key} onClick={() => { setEdgeKey(key); setNodeId(null); }}>{symbols.get(edge.from)} → {symbols.get(edge.to)} · {edge.occurrences.length}</button>; })}</div> : <p><T text={"No resolved adjacent chords to compare."}/></p>}</section>
+        {selectedEdge && <section className="harmonic-detail" aria-label={t("Transition occurrences")}><h3>{symbols.get(selectedEdge.from)} → {symbols.get(selectedEdge.to)}</h3><p><T text={"Choose an occurrence in the written transition."}/></p>{selectedEdge.occurrences.map(pair => <div className="harmonic-pair" key={`${pair.from.id}-${pair.to.id}`}><OccurrenceButton item={pair.from} label={`From ${pair.from.order + 1}`} stale={stale} onSelect={onSelect}/><span aria-hidden="true">→</span><OccurrenceButton item={pair.to} label={`To ${pair.to.order + 1}`} stale={stale} onSelect={onSelect}/></div>)}</section>}
       </div>
-    </> : <p className="journey-empty">No resolved chords to map yet. Add chords or review unrecognized symbols.</p>}
+    </> : <p className="journey-empty"><T text={"No resolved chords to map yet. Add chords or review unrecognized symbols."}/></p>}
     {map.unresolved.length > 0 && <div className="harmonic-notice"><p>{map.unresolved.length} unresolved occurrence{map.unresolved.length === 1 ? '' : 's'} excluded. Transitions across them are not inferred.</p><div className="harmonic-buttons">{map.unresolved.map(item => <OccurrenceButton key={item.id} item={item} stale={stale} onSelect={onSelect}/>)}</div></div>}
   </section>;
 }

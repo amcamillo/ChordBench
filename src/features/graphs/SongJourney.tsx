@@ -1,3 +1,4 @@
+import { T } from '../../i18n/Language.tsx';
 import { useEffect, useRef, useState } from 'react';
 import type { JourneyNode, SongJourney as Journey } from '../../domain/graphs/songJourney.ts';
 
@@ -47,10 +48,10 @@ export function SongJourney({ journey, selectedId, playingId, stale, onSelect }:
   function fit() { setScale(Math.max(.5, Math.min(1, ((viewport.current?.clientWidth ?? width) - 28) / width))); }
   const controls = { selectedId, playingId, stale, onSelect };
   return <section className="journey-panel" aria-labelledby="journey-heading">
-    <div className="journey-heading"><div><h2 id="journey-heading">Song journey</h2><p>Follow the written order. Each appearance is its own chord.</p></div><span className="journey-count">{count} occurrences</span></div>
+    <div className="journey-heading"><div><h2 id="journey-heading"><T text={"Song journey"}/></h2><p>Follow the written order. Each appearance is its own chord.</p></div><span className="journey-count">{count} occurrences</span></div>
     {count > 0 ? <>
-      <div className="journey-toolbar" role="group" aria-label="Graph zoom controls"><button onClick={() => setScale(value => Math.max(.5, Math.round((value - .25) * 100) / 100))} aria-label="Zoom graph out">−</button><output aria-label="Graph zoom">{Math.round(scale * 100)}%</output><button onClick={() => setScale(value => Math.min(1.5, Math.round((value + .25) * 100) / 100))} aria-label="Zoom graph in">+</button><button onClick={fit}>Fit width</button><button onClick={() => setScale(1)}>Reset zoom</button></div>
-      <p className="journey-help">Select a chord to inspect it. The magenta outline follows playback. Scroll sideways if needed.</p>
+      <div className="journey-toolbar" role="group" aria-label="Graph zoom controls"><button onClick={() => setScale(value => Math.max(.5, Math.round((value - .25) * 100) / 100))} aria-label="Zoom graph out">−</button><output aria-label="Graph zoom">{Math.round(scale * 100)}%</output><button onClick={() => setScale(value => Math.min(1.5, Math.round((value + .25) * 100) / 100))} aria-label="Zoom graph in">+</button><button onClick={fit}><T text={"Fit width"}/></button><button onClick={() => setScale(1)}><T text={"Reset zoom"}/></button></div>
+      <p className="journey-help"><T text={"Select a chord to inspect it. The magenta outline follows playback. Scroll sideways if needed."}/></p>
       <div className="journey-viewport" ref={viewport} role="region" tabIndex={0} aria-label="Song journey graph, scroll horizontally when needed" aria-busy={stale}>
         {journey.sections.map((section, index) => {
           const closed = collapsed.has(section.id);
@@ -62,7 +63,7 @@ export function SongJourney({ journey, selectedId, playingId, stale, onSelect }:
           </div>;
         })}
       </div>
-      <details className="journey-list"><summary>Show chord list instead</summary><p>Chord occurrences in written order. Select an item to inspect it.</p>{journey.sections.map(section => <div key={section.id}><h3>{section.name}</h3><ol>{section.nodes.map(node => <li key={node.id}><button disabled={stale} aria-pressed={node.id === selectedId} onClick={() => onSelect(node.id)}>{node.order + 1}. {node.symbol}{node.unresolved ? ' (unresolved)' : ''}{node.id === playingId ? ' (playing)' : ''}</button></li>)}</ol></div>)}</details>
-    </> : <p className="journey-empty">Add chords to the chart to see their journey.</p>}
+      <details className="journey-list"><summary><T text={"Show chord list instead"}/></summary><p><T text={"Chord occurrences in written order. Select an item to inspect it."}/></p>{journey.sections.map(section => <div key={section.id}><h3>{section.name}</h3><ol>{section.nodes.map(node => <li key={node.id}><button disabled={stale} aria-pressed={node.id === selectedId} onClick={() => onSelect(node.id)}>{node.order + 1}. {node.symbol}{node.unresolved ? ' (unresolved)' : ''}{node.id === playingId ? ' (playing)' : ''}</button></li>)}</ol></div>)}</details>
+    </> : <p className="journey-empty"><T text={"Add chords to the chart to see their journey."}/></p>}
   </section>;
 }

@@ -26,9 +26,14 @@ test('active chord stays centered during playback, pause, navigation and camera 
   await page.getByRole('button', { name: 'Reset view', exact: true }).click();
   await page.locator('.time-stage').screenshot({ path: 'test-results/dna-centered.png' });
   await page.getByRole('button', { name: 'Whole song', exact: true }).click();
-  await centered();
+  const checkWholeSong = async () => {
+    await expect(canvas).toHaveAttribute('data-scope', 'whole');
+    const ends: number[][] = JSON.parse((await canvas.getAttribute('data-overview-ends'))!);
+    for (const [x, y] of ends) { expect(Math.abs(x)).toBeLessThan(1); expect(Math.abs(y)).toBeLessThan(1); }
+  };
+  await checkWholeSong();
   await page.getByLabel('Jump to chord', { exact: true }).fill('12');
-  await centered();
+  await checkWholeSong();
 });
 
 test('rhythm explanations and camera sliders stay tucked away until requested', async ({ page }) => {

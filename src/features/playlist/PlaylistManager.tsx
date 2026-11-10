@@ -1,10 +1,13 @@
+import { T } from '../../i18n/Language.tsx';
 import { useRef, useState } from 'react';
+import { useT } from '../../i18n/Language.tsx';
 import { inspectChartBytes, MAX_IMPORT_BYTES } from '../../domain/chart/importChart.ts';
 import { tonalTheory } from '../../infrastructure/theory/tonal.ts';
 import { validatePlaylist, type PlaylistSong } from '../../infrastructure/storage/playlist.ts';
 import type { usePlaylist } from './usePlaylist.ts';
 
 export function PlaylistManager({ playlist, onLoad, disabled }: { playlist: ReturnType<typeof usePlaylist>; onLoad(id: string): void; disabled: boolean }) {
+  const t = useT();
   const [title, setTitle] = useState('');
   const [pending, setPending] = useState<PlaylistSong[]>([]);
   const [error, setError] = useState('');
@@ -40,22 +43,22 @@ export function PlaylistManager({ playlist, onLoad, disabled }: { playlist: Retu
     const link = document.createElement('a'); link.href = url; link.download = 'chordbench-playlist.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <details className="playlist-manager">
-    <summary>Playlist · {playlist.songs.length} songs</summary>
+    <summary>Playlist · {playlist.songs.length} {t('songs')}</summary>
     <div className="playlist-body">
-      <p>Prepare your set here. Loaded songs keep their chart, transposition, tempo and instrument as you edit. Add the current chart before loading another song if you want to keep it in the playlist.</p>
-      <div className="playlist-add"><label>Song title<input maxLength={100} value={title} onChange={event => setTitle(event.target.value)}/></label><button disabled={disabled || !playlist.ready} onClick={() => attempt(() => { playlist.addCurrent(title); setTitle(''); })}>Add current chart</button></div>
-      <label>Load chart files or a playlist backup<input type="file" multiple accept=".txt,.pro,.cho,.chopro,.chordpro,.crd,.json" disabled={disabled || !playlist.ready || busy} onChange={event => { void choose(Array.from(event.target.files ?? [])); event.target.value = ''; }}/></label>
-      <p className="helper">Up to 40 songs. ChartPro/text imports remove metadata and standalone links; musical text remains. Playlist backups retain all saved settings.</p>
-      {busy && <p role="status">Reading charts…</p>}
-      {pending.length > 0 && <div className="playlist-preview"><strong>Ready to add {pending.length} songs</strong><ul>{pending.map(song => <li key={song.id}>{song.title}</li>)}</ul><button disabled={disabled} onClick={() => attempt(() => { playlist.add(pending); setPending([]); })}>Add files to playlist</button><button onClick={() => setPending([])}>Cancel files</button></div>}
-      {(error || playlist.error) && <p role="alert">{error || playlist.error}</p>}
-      {playlist.error && <button onClick={playlist.retry}>Retry playlist storage</button>}
+      <p><T text={"Prepare your set here. Loaded songs keep their chart, transposition, tempo and instrument as you edit. Add the current chart before loading another song if you want to keep it in the playlist."}/></p>
+      <div className="playlist-add"><label><T text={"Song title"}/><input maxLength={100} value={title} onChange={event => setTitle(event.target.value)}/></label><button disabled={disabled || !playlist.ready} onClick={() => attempt(() => { playlist.addCurrent(title); setTitle(''); })}><T text={"Add current chart"}/></button></div>
+      <label><T text={"Load chart files or a playlist backup"}/><input type="file" multiple accept=".txt,.pro,.cho,.chopro,.chordpro,.crd,.json" disabled={disabled || !playlist.ready || busy} onChange={event => { void choose(Array.from(event.target.files ?? [])); event.target.value = ''; }}/></label>
+      <p className="helper"><T text={"Up to 40 songs. ChartPro/text imports remove metadata and standalone links; musical text remains. Playlist backups retain all saved settings."}/></p>
+      {busy && <p role="status"><T text={"Reading charts\u2026"}/></p>}
+      {pending.length > 0 && <div className="playlist-preview"><strong>{t('Ready to add')} {pending.length} {t('songs')}</strong><ul>{pending.map(song => <li key={song.id}>{song.title}</li>)}</ul><button disabled={disabled} onClick={() => attempt(() => { playlist.add(pending); setPending([]); })}><T text={"Add files to playlist"}/></button><button onClick={() => setPending([])}><T text={"Cancel files"}/></button></div>}
+      {(error || playlist.error) && <p role="alert">{t(error || playlist.error)}</p>}
+      {playlist.error && <button onClick={playlist.retry}><T text={"Retry playlist storage"}/></button>}
       <ol className="playlist-songs">{playlist.songs.map((song, index) => <li key={song.id} data-active={playlist.activeId === song.id}>
-        <label><span>Song {index + 1}</span><input aria-label={`Title for song ${index + 1}`} maxLength={100} defaultValue={song.title} onBlur={event => { playlist.rename(song.id, event.target.value); event.target.value = event.target.value.trim() || song.title; }}/></label>
-        <div><button disabled={disabled || playlist.activeId === song.id} aria-label={`Load ${song.title}`} onClick={() => onLoad(song.id)}>{playlist.activeId === song.id ? 'Loaded' : 'Load'}</button><button disabled={index === 0} aria-label={`Move ${song.title} up`} onClick={() => playlist.move(song.id, -1)}>↑</button><button disabled={index === playlist.songs.length - 1} aria-label={`Move ${song.title} down`} onClick={() => playlist.move(song.id, 1)}>↓</button><button onClick={() => playlist.remove(song.id)} aria-label={`Remove ${song.title}`}>Remove</button></div>
+        <label><span>{t('Song')} {index + 1}</span><input aria-label={`${t('Title for song')} ${index + 1}`} maxLength={100} defaultValue={song.title} onBlur={event => { playlist.rename(song.id, event.target.value); event.target.value = event.target.value.trim() || song.title; }}/></label>
+        <div><button disabled={disabled || playlist.activeId === song.id} aria-label={`${t('Load')} ${song.title}`} onClick={() => onLoad(song.id)}>{t(playlist.activeId === song.id ? 'Loaded' : 'Load')}</button><button disabled={index === 0} aria-label={t('Move {song} up').replace('{song}', song.title)} onClick={() => playlist.move(song.id, -1)}>↑</button><button disabled={index === playlist.songs.length - 1} aria-label={t('Move {song} down').replace('{song}', song.title)} onClick={() => playlist.move(song.id, 1)}>↓</button><button onClick={() => playlist.remove(song.id)} aria-label={`${t('Remove')} ${song.title}`}><T text={"Remove"}/></button></div>
       </li>)}</ol>
-      {playlist.removed && <button onClick={() => attempt(playlist.undo)}>Undo removal of {playlist.removed.song.title}</button>}
-      <div className="playlist-backup"><button disabled={!playlist.songs.length} onClick={download}>Download playlist</button><span role="status">{playlist.status}</span></div>
+      {playlist.removed && <button onClick={() => attempt(playlist.undo)}>{t('Undo removal of')} {playlist.removed.song.title}</button>}
+      <div className="playlist-backup"><button disabled={!playlist.songs.length} onClick={download}><T text={"Download playlist"}/></button><span role="status">{t(playlist.status)}</span></div>
     </div>
   </details>;
 }

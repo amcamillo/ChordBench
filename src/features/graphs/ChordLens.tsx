@@ -1,3 +1,4 @@
+import { T } from '../../i18n/Language.tsx';
 import { type TimeChord } from '../../domain/graphs/fifthsTime.ts';
 
 const roles: Record<string, string> = { '1P': 'Root', '3m': 'Minor third', '3M': 'Major third', '4P': 'Perfect fourth', '5P': 'Perfect fifth', '5d': 'Diminished fifth', '5A': 'Augmented fifth', '6M': 'Major sixth', '7m': 'Minor seventh', '7M': 'Major seventh', '9M': 'Major ninth', '9m': 'Minor ninth', '11P': 'Perfect eleventh', '13M': 'Major thirteenth' };
@@ -14,8 +15,8 @@ export function ChordLens({ chord, disabled, onDive }: { chord: TimeChord; disab
       <text x="130" y="114" textAnchor="middle" fill="#252b4b" fontSize="21">{chord.symbol}</text>
     </svg>
     <div><h3>{chord.symbol} · chord {chord.order + 1}</h3><p>{chord.unresolved ? 'Unresolved symbol: no chord tones are invented.' : 'Each dot is a chord tone. The polygon joins those tones around the chromatic note circle; its edges are not melody or voice movement.'}</p>
-      <button disabled={disabled} onClick={onDive}>Dive into chord</button>
-      <details><summary>Notes &amp; intervals</summary><ul>{chord.notes.map((note, i) => <li key={i}><strong>{note.spelling}</strong> — {roles[note.interval] ?? `Interval ${note.interval}`} ({note.interval})</li>)}</ul>{chord.bass && <p>Requested bass: {chord.bass}. The diagram shows pitch classes, not a particular voicing.</p>}</details>
+      <button disabled={disabled} onClick={onDive}><T text={"Dive into chord"}/></button>
+      <details><summary>Notes &amp; intervals</summary><ul>{chord.notes.map((note, i) => <li key={i}><strong>{note.spelling}</strong> — {roles[note.interval] ?? `Interval ${note.interval}`} ({note.interval})</li>)}</ul>{chord.bass && <p><T text={"Requested bass:"}/> {chord.bass}. The diagram shows pitch classes, not a particular voicing.</p>}</details>
     </div>
   </section>;
 }

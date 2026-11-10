@@ -1,3 +1,5 @@
+import { T } from '../../i18n/Language.tsx';
+import { useT } from '../../i18n/Language.tsx';
 import type { ChartLine, Occurrence, ParsedChart, Token } from '../../domain/chart/parser.ts';
 import type { AccidentalPreference } from '../../domain/harmony/types.ts';
 import type { TheoryPort } from '../../ports/theory.ts';
@@ -14,13 +16,14 @@ interface Props {
 }
 
 export function ChartViewer({ chart, theory, shift, preference, selectedId, playingId, stale, onSelect }: Props) {
+  const t = useT();
   const byId = new Map(chart.occurrences.map(item => [item.id, item]));
   function chordButton(token: Token) {
     const occurrence = byId.get(token.occurrenceId!) as Occurrence;
     const result = theory.transpose(occurrence.symbol, shift, preference);
     const label = result.status === 'resolved' ? result.chord.symbol : occurrence.symbol;
     return <button key={token.start} type="button" className={`chord-token ${result.status !== 'resolved' ? 'unresolved' : ''} ${playingId === occurrence.id ? 'playing-token' : ''}`}
-      aria-label={`${label}, occurrence ${occurrence.order + 1}${result.status !== 'resolved' ? ', unresolved' : ''}`}
+      aria-label={`${label}, ${t('occurrence')} ${occurrence.order + 1}${result.status !== 'resolved' ? `, ${t('unresolved')}` : ''}`}
       aria-pressed={selectedId === occurrence.id} disabled={stale} onClick={() => onSelect(occurrence.id)}>
       {label}{result.status !== 'resolved' && <span className="unresolved-mark" aria-hidden="true">?</span>}
     </button>;
@@ -52,7 +55,7 @@ export function ChartViewer({ chart, theory, shift, preference, selectedId, play
       rows.push(<div key={line.start} className={`chart-line ${line.kind}`}>{renderTokens(line)}</div>);
     }
   }
-  return <div className={`chart-scroll ${stale ? 'stale' : ''}`} tabIndex={0} role="region" aria-label="Readable chord chart; scroll horizontally for long lines" aria-busy={stale}>
-    {chart.source.trim() ? rows : <div className="empty-chart"><h3>Your chart starts here.</h3><p>Paste chords and lyrics in the editor. Use brackets like [C] or bars like C | Am | F | G.</p></div>}
+  return <div className={`chart-scroll ${stale ? 'stale' : ''}`} tabIndex={0} role="region" aria-label={t("Readable chord chart; scroll horizontally for long lines")} aria-busy={stale}>
+    {chart.source.trim() ? rows : <div className="empty-chart"><h3><T text={"Your chart starts here."}/></h3><p>Paste chords and lyrics in the editor. Use brackets like [C] or bars like C | Am | F | G.</p></div>}
   </div>;
 }

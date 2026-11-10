@@ -1,3 +1,4 @@
+import { T } from '../../i18n/Language.tsx';
 import { useEffect, useRef } from 'react';
 
 export function TimingRuler({ focus, symbol, running, getPosition }: { focus: number; symbol: string; running: boolean; getPosition(): number }) {
@@ -21,7 +22,7 @@ export function TimingRuler({ focus, symbol, running, getPosition }: { focus: nu
     return () => cancelAnimationFrame(frame);
   }, [focus, running, getPosition]);
   return <div className="dna-timing-ruler" aria-label="Screen-facing timing ruler">
-    <span>{symbol} · chord {focus + 1}<small>Assumed 4/4 · beats</small></span>
+    <span>{symbol} · chord {focus + 1}<small><T text={"Assumed 4/4 \u00b7 beats"}/></small></span>
     <div className="dna-ruler-counts" aria-hidden="true">{[1, 2, 3, 4].map(beat => <span key={beat}>{beat}</span>)}</div>
     <svg viewBox="0 0 1000 42" preserveAspectRatio="none" role="img" aria-label="Four-beat timing ruler; the dark marker shows progress through the current assumed bar">
       <line x1="20" x2="980" y1="28" y2="28" stroke="#b9b7d7" strokeWidth="4"/>
