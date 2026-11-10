@@ -1,5 +1,6 @@
 /** UI copy only. User charts, lyrics, song titles and chord symbols are never translated. */
 export const ptBR: Record<string, string> = {
+  'Watch release video': 'Assistir ao vídeo de lançamento', 'Watch release video (opens in a new tab)': 'Assistir ao vídeo de lançamento (abre em uma nova aba)',
   'next': 'próximo', 'No chords': 'Sem acordes', 'playing': 'tocando', 'paused': 'pausado', 'stopped': 'parado',
   'Saved draft available': 'Rascunho salvo disponível', 'Ready to save locally': 'Pronto para salvar neste navegador', 'Local save unavailable': 'Não foi possível salvar localmente', 'Unsaved changes': 'Alterações não salvas', 'Saving locally…': 'Salvando neste navegador…', 'Saved on this browser': 'Salvo neste navegador', 'Changes not saved': 'Alterações não salvas', 'Checking local draft…': 'Verificando rascunho local…',
   'Collapse': 'Recolher', 'Expand': 'Expandir', 'visualization': 'visualização', 'chord details': 'detalhes do acorde', 'editor': 'editor', 'chart': 'cifra', 'playback settings': 'configurações de reprodução',

@@ -56,3 +56,6 @@
 @media (max-width: 360px) {
   .session-tabs button { min-width: 0; padding-inline: 3px; font-size: 14px; }
 }
+.release-video-link { display: inline-flex; min-height: 44px; align-items: center; padding: 8px 12px; border: 1px solid #b5c0f3; border-radius: 8px; background: #eef1ff; color: #314aaf; font-weight: 600; text-decoration: none; }
+.release-video-link:hover { background: #dfe6ff; }
+.release-video-link:focus-visible { outline: 3px solid #263c91; outline-offset: 2px; }

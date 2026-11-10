@@ -6,7 +6,7 @@ import { chromium } from '@playwright/test';
 
 const root = resolve('dist');
 const prefix = '/ChordBench/';
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.mp4': 'video/mp4' };
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
   if (!pathname.startsWith(prefix)) { response.writeHead(404).end(); return; }
@@ -27,6 +27,9 @@ try {
   page.on('pageerror', error => failures.push(error.message));
   page.on('response', response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
   await page.goto(`http://127.0.0.1:${port}${prefix}`, { waitUntil: 'networkidle' });
+  const videoLink = page.getByRole('link', { name: 'Watch release video (opens in a new tab)' });
+  const videoUrl = await videoLink.getAttribute('href');
+  if (!videoUrl || !(await page.request.get(new URL(videoUrl, page.url()).href)).ok()) failures.push('Release video unavailable under Pages subpath');
   await page.locator('.time-canvas[data-renderer="webgl"]').waitFor();
   await page.getByRole('button', { name: 'Score view', exact: true }).click();
   await page.getByRole('region', { name: 'Song DNA score' }).waitFor();

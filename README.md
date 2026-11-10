@@ -2,6 +2,8 @@
 
 A local-first companion for reading chord charts, exploring harmony, and hearing synthesized piano and guitar.
 
+[Watch the release video](https://amcamillo.github.io/ChordBench/media/ChordWorkbench-v0.1-release.mp4).
+
 ## Using ChordBench
 
 Open **Setup** to edit or import a chart. Use **Playlist** to prepare multiple songs, arrange their order and download or restore a backup. Select **Start session** for a touch-friendly view with chart, instrument, playback and song navigation controls.
